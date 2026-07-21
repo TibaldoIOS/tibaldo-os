@@ -1,0 +1,1000 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import IdeasGraph from "./pages/IdeasGraph";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+const SHEET_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTWc95CaKrduwyhwg3t4LlfjLDI85oPVOA0v1_Dab6C5b1DX_WmgU5vWAGpsJ4oVcED011gqTsxLIWh/pub?output=csv";
+
+const AIRBNB_STORAGE_KEY = "tibaldo_airbnb_reports_v1";
+
+const animals = [
+  { key: "uzy", name: "Uzy", emoji: "🐆", type: "Femelle Bengal", status: "Surveillance gestation / mise bas" },
+  { key: "zephyr", name: "Zéphyr", emoji: "🐅", type: "Mâle Bengal", status: "Reproducteur / implant / marquage" },
+  { key: "bali", name: "Bali", emoji: "🐈", type: "Femelle Bengal", status: "Jeune femelle / croissance" },
+];
+
+const tabs = [
+  { id: "home", label: "Accueil", icon: "🏡" },
+  { id: "search", label: "Recherche", icon: "🔎" },
+  { id: "plan", label: "Plan", icon: "🧭" },
+  { id: "ideas", label: "Idées", icon: "🧠" },
+  { id: "graph", label: "Carte", icon: "🕸️" },
+  { id: "airbnb", label: "Airbnb", icon: "💶" },
+  { id: "plus", label: "Plus", icon: "☰" },
+];
+
+const seedTasks = [
+  { title: "Vétérinaire Uzy : vermifuge / antiparasitaire / traitement mère + chatons", category: "Chatterie", priority: "haute", date: "2026-06-08", source: "seed" },
+  { title: "Surveiller Uzy : signes de mise bas, comportement, appétit, pertes", category: "Chatterie", priority: "haute", date: "2026-06-08", source: "seed" },
+  { title: "Préparer Airbnb du haut : lit, escaliers, plantes fanées, ménage", category: "Airbnb", priority: "haute", date: "2026-06-08", source: "seed" },
+  { title: "Point avec la voisine pour les chats pendant l’absence", category: "Animaux", priority: "haute", date: "2026-06-09", time: "10:00", source: "seed" },
+  { title: "Arrivée Airbnb du haut", category: "Airbnb", priority: "haute", date: "2026-06-09", time: "17:00", source: "seed" },
+  { title: "RDV Novvasy / Ritaline", category: "Santé", priority: "haute", date: "2026-06-12", time: "10:00", source: "seed" },
+  { title: "Nadine dépose son chien pour 24h", category: "Animaux", priority: "haute", date: "2026-06-12", time: "14:00", source: "seed" },
+  { title: "Soirée collègues au restaurant", category: "Perso", priority: "moyenne", date: "2026-06-12", time: "19:00", source: "seed" },
+  { title: "Braderie à Lambersart le matin", category: "Business", priority: "haute", date: "2026-06-14", source: "seed" },
+  { title: "Implant Suprelorin / Suolin pour Zéphyr", category: "Chatterie", priority: "haute", date: "2026-06-16", time: "14:00", source: "seed" },
+  { title: "RDV addictologue", category: "Santé", priority: "haute", date: "2026-06-19", time: "11:00", source: "seed" },
+  { title: "Réserver TER pour Lyon / cousine / Annecy", category: "Vacances", priority: "haute", date: "2026-06-20", source: "seed" },
+  { title: "Départ TGV pour Lyon — vacances jusqu’au 29", category: "Vacances", priority: "haute", date: "2026-06-24", source: "seed" },
+];
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [authEmail, setAuthEmail] = useState("contact@tibaldo.fr");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("home");
+  const [selectedAnimalKey, setSelectedAnimalKey] = useState("uzy");
+  const [weights, setWeights] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [ideas, setIdeas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) loadAll();
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession) loadAll();
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function signIn() {
+    setAuthMessage("Connexion...");
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    if (error) return setAuthMessage("Erreur connexion : " + error.message);
+    setAuthMessage("Connecté ✅");
+    await loadAll();
+  }
+
+  async function signUp() {
+    setAuthMessage("Création du compte...");
+    const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+    if (error) return setAuthMessage("Erreur création compte : " + error.message);
+    setAuthMessage("Compte créé. Vérifie tes mails si Supabase demande confirmation.");
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setSession(null);
+    setWeights([]);
+    setTasks([]);
+    setIdeas([]);
+    setAuthPassword("");
+  }
+
+  async function loadAll() {
+    setLoading(true);
+    await Promise.all([loadWeights(), loadTasks(), loadIdeas()]);
+    setLoading(false);
+  }
+
+  async function loadWeights() {
+    const { data, error } = await supabase
+      .from("weights")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) return setMessage("Erreur lecture pesées : " + error.message);
+    setWeights(data || []);
+  }
+
+  async function loadTasks() {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) return setMessage("Erreur lecture tâches : " + error.message);
+
+    if ((data || []).length === 0) {
+      await supabase.from("tasks").insert(seedTasks);
+      const retry = await supabase
+        .from("tasks")
+        .select("*")
+        .order("date", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (!retry.error) setTasks(retry.data || []);
+      return;
+    }
+
+    setTasks(data || []);
+  }
+
+  async function loadIdeas() {
+    const { data, error } = await supabase
+      .from("ideas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) return setMessage("Erreur lecture idées : " + error.message);
+    setIdeas(data || []);
+  }
+
+  async function addWeight({ animalKey, animalName, date, weight, note }) {
+    setMessage("Enregistrement de la pesée...");
+    const { error } = await supabase.from("weights").insert({
+      animal_key: animalKey,
+      animal_name: animalName,
+      date,
+      weight: Number(weight),
+      note,
+    });
+
+    if (error) return setMessage("Erreur pesée : " + error.message);
+    setMessage("Pesée enregistrée en ligne ✅");
+    await loadWeights();
+  }
+
+  async function toggleTask(task) {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ done: !task.done })
+      .eq("id", task.id);
+
+    if (error) return setMessage("Erreur tâche : " + error.message);
+    await loadTasks();
+  }
+
+  async function addTask(newTask) {
+    const { error } = await supabase.from("tasks").insert(newTask);
+    if (error) return setMessage("Erreur ajout tâche : " + error.message);
+    setMessage("Tâche ajoutée ✅");
+    await loadTasks();
+  }
+
+  async function deleteTask(taskId) {
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    if (error) return setMessage("Erreur suppression tâche : " + error.message);
+    await loadTasks();
+  }
+
+  async function addIdeasFromText(text) {
+    const parsedIdeas = analyzeIdeas(text);
+    if (parsedIdeas.length === 0) return setMessage("Aucune idée détectée.");
+
+    const { error } = await supabase.from("ideas").insert(parsedIdeas);
+    if (error) return setMessage("Erreur ajout idées : " + error.message);
+
+    setMessage(`${parsedIdeas.length} idée(s) ajoutée(s) au journal ✅`);
+    await loadIdeas();
+  }
+
+  async function toggleIdea(idea) {
+    const { error } = await supabase
+      .from("ideas")
+      .update({ done: !idea.done })
+      .eq("id", idea.id);
+
+    if (error) return setMessage("Erreur idée : " + error.message);
+    await loadIdeas();
+  }
+
+  async function deleteIdea(ideaId) {
+    const { error } = await supabase.from("ideas").delete().eq("id", ideaId);
+    if (error) return setMessage("Erreur suppression idée : " + error.message);
+    await loadIdeas();
+  }
+
+  async function sendIdeaToTask(idea) {
+    const { error } = await supabase.from("tasks").insert({
+      title: idea.title,
+      description: idea.description,
+      category: idea.category,
+      priority: idea.priority,
+      date: new Date().toISOString().slice(0, 10),
+      done: false,
+      source: "idea",
+    });
+
+    if (error) return setMessage("Erreur conversion idée → tâche : " + error.message);
+
+    await supabase.from("ideas").update({ status: "envoyee_plan" }).eq("id", idea.id);
+    setMessage("Idée envoyée dans le Plan ✅");
+    await Promise.all([loadTasks(), loadIdeas()]);
+    setActiveTab("plan");
+  }
+
+  if (!session) {
+    return (
+      <div className="app loginApp">
+        <div className="loginCard">
+          <div className="brandCircle">T</div>
+          <h1>Tibaldo OS</h1>
+          <p>Connexion au stockage en ligne Supabase</p>
+
+          <label>
+            Email
+            <input value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
+          </label>
+
+          <label>
+            Mot de passe
+            <input
+              type="password"
+              value={authPassword}
+              placeholder="Mot de passe"
+              onChange={(e) => setAuthPassword(e.target.value)}
+            />
+          </label>
+
+          <div className="buttonRow">
+            <button className="primary" onClick={signIn}>Se connecter</button>
+            <button className="secondaryButton" onClick={signUp}>Créer compte</button>
+          </div>
+
+          {authMessage && <p className="message">{authMessage}</p>}
+        </div>
+
+        <style>{styles}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <div className="stickyTop">
+        <header className="topHeader">
+          <div className="brandMark">T</div>
+          <div>
+            <h1>Tibaldo OS</h1>
+            <p>{session.user.email}</p>
+          </div>
+          <button className="logoutSmall" onClick={signOut}>Sortir</button>
+        </header>
+
+        <nav className="topNav">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={activeTab === tab.id ? "active" : ""}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span>{tab.icon}</span>
+              <small>{tab.label}</small>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <main className="content">
+        {message && <div className="topMessage">{message}</div>}
+        {loading && <div className="topMessage">Chargement Supabase...</div>}
+
+        {activeTab === "home" && (
+          <HomePage
+            weights={weights}
+            tasks={tasks}
+            ideas={ideas}
+            onGoPlan={() => setActiveTab("plan")}
+            onGoIdeas={() => setActiveTab("ideas")}
+            onGoSearch={() => setActiveTab("search")}
+            onGoChatterie={() => setActiveTab("chatterie")}
+            onGoAirbnb={() => setActiveTab("airbnb")}
+            onGoPlus={() => setActiveTab("plus")}
+          />
+        )}
+
+        {activeTab === "search" && (
+          <SearchPage
+            weights={weights}
+            tasks={tasks}
+            ideas={ideas}
+            onGoPlan={() => setActiveTab("plan")}
+            onGoIdeas={() => setActiveTab("ideas")}
+            onGoChatterie={() => setActiveTab("chatterie")}
+          />
+        )}
+
+        {activeTab === "plan" && (
+          <PlanPage
+            tasks={tasks}
+            onToggleTask={toggleTask}
+            onAddTask={addTask}
+            onDeleteTask={deleteTask}
+          />
+        )}
+
+        {activeTab === "ideas" && (
+          <IdeasPage
+            ideas={ideas}
+            onAddIdeasFromText={addIdeasFromText}
+            onToggleIdea={toggleIdea}
+            onDeleteIdea={deleteIdea}
+            onSendIdeaToTask={sendIdeaToTask}
+          />
+        )}
+
+        {activeTab === "graph" && (
+          <IdeasGraph />
+        )}
+
+        {activeTab === "airbnb" && <AirbnbPage />}
+
+        {activeTab === "plus" && (
+          <PlusPage
+            session={session}
+            weights={weights}
+            tasks={tasks}
+            ideas={ideas}
+            onRefresh={loadAll}
+            onSignOut={signOut}
+          />
+        )}
+      </main>
+
+      <style>{styles}</style>
+    </div>
+  );
+}
+
+function HomePage({ weights, tasks, ideas, onGoPlan, onGoIdeas, onGoSearch, onGoChatterie, onGoAirbnb, onGoPlus }) {
+  const uzyWeights = weights.filter((w) => w.animal_key === "uzy");
+  const lastUzy = uzyWeights[uzyWeights.length - 1];
+  const openTasks = tasks.filter((t) => !t.done).length;
+  const urgentTasks = tasks.filter((t) => !t.done && t.priority === "haute").length;
+  const openIdeas = ideas.filter((i) => !i.done).length;
+
+  return (
+    <section className="page">
+      <div className="hero">
+        <p className="eyebrow">Accueil</p>
+        <h2>Bonjour Romain</h2>
+        <p>Tibaldo OS est synchronisé avec Supabase : pesées, tâches, idées, recherche globale, Airbnb et tableau de bord ménage.</p>
+      </div>
+
+      <button className="searchHeroButton" onClick={onGoSearch}>🔎 Rechercher dans tout Tibaldo OS</button>
+
+      <div className="dashGrid">
+        <button className="statBig statButton" onClick={onGoChatterie}>
+          <span>Pesées</span>
+          <strong>{weights.length}</strong>
+        </button>
+
+        <button className="statBig statButton" onClick={onGoPlan}>
+          <span>Tâches ouvertes</span>
+          <strong>{openTasks}</strong>
+        </button>
+
+        <button className="statBig statButton" onClick={onGoPlan}>
+          <span>Urgences</span>
+          <strong>{urgentTasks}</strong>
+        </button>
+
+        <button className="statBig statButton" onClick={onGoIdeas}>
+          <span>Idées ouvertes</span>
+          <strong>{openIdeas}</strong>
+        </button>
+      </div>
+
+      <div className="card">
+        <p className="eyebrow">Airbnb</p>
+        <h3>Recettes & PDF</h3>
+        <p className="muted">Dépose un rapport PDF Airbnb pour analyser les recettes, les frais, les nuits et les logements.</p>
+        <button className="primary" onClick={onGoAirbnb}>Ouvrir Airbnb</button>
+      </div>
+
+      <div className="card">
+        <p className="eyebrow">Ménage</p>
+        <h3>Tableau de bord prestations</h3>
+        <p className="muted">Analyse les heures, achats, linge Jennifer, admin/service client et coûts estimés.</p>
+        <button className="secondaryButton" onClick={onGoPlus}>Ouvrir Plus → Ménage</button>
+      </div>
+
+      <div className="card">
+        <p className="eyebrow">Uzy</p>
+        <h3>Dernière pesée</h3>
+        <p className="muted">
+          {lastUzy ? `${lastUzy.weight} kg le ${formatDate(lastUzy.date)}` : "Aucune pesée enregistrée."}
+        </p>
+        <button className="secondaryButton" onClick={onGoChatterie}>Ouvrir Chatterie</button>
+      </div>
+    </section>
+  );
+}
+
+function SearchPage({ weights, tasks, ideas, onGoPlan, onGoIdeas, onGoChatterie }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  const taskResults = tasks.filter((task) =>
+    q && [task.title, task.description, task.category, task.priority, task.date, task.time]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(q)
+  );
+
+  const ideaResults = ideas.filter((idea) =>
+    q && [idea.title, idea.description, idea.category, idea.priority, idea.status, idea.week_label]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(q)
+  );
+
+  const weightResults = weights.filter((weight) =>
+    q && [weight.animal_name, weight.animal_key, weight.weight, weight.date, weight.note]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(q)
+  );
+
+  const total = taskResults.length + ideaResults.length + weightResults.length;
+
+  return (
+    <section className="page">
+      <div className="hero">
+        <p className="eyebrow">Recherche globale</p>
+        <h2>Rechercher dans Tibaldo OS</h2>
+        <p>Recherche dans les tâches, les idées, le journal de bord et les pesées.</p>
+      </div>
+
+      <div className="card">
+        <label>
+          Mot-clé
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Ex : Uzy, comptable, Lyon, litière, bananier..."
+          />
+        </label>
+        <p className="muted">
+          {q ? `${total} résultat(s) trouvé(s) pour “${query}”.` : "Tape un mot pour chercher dans tout ton système."}
+        </p>
+      </div>
+
+      {q && (
+        <>
+          <SearchBlock title="Tâches trouvées" eyebrow="Plan" onOpen={onGoPlan} empty="Aucune tâche trouvée.">
+            {taskResults.map((task) => (
+              <div className="searchItem" key={task.id}>
+                <div className="taskMeta">
+                  <span>{task.category || "Sans catégorie"}</span>
+                  {task.date && <span>{formatDate(task.date)}</span>}
+                  <span className={`priority ${task.priority || "moyenne"}`}>{task.priority || "moyenne"}</span>
+                </div>
+                <strong>{task.done ? "✅ " : ""}{task.title}</strong>
+                {task.description && <p>{task.description}</p>}
+              </div>
+            ))}
+          </SearchBlock>
+
+          <SearchBlock title="Journal de bord" eyebrow="Idées" onOpen={onGoIdeas} empty="Aucune idée trouvée.">
+            {ideaResults.map((idea) => (
+              <div className="searchItem" key={idea.id}>
+                <div className="taskMeta">
+                  <span>{idea.category || "Sans catégorie"}</span>
+                  <span className={`priority ${idea.priority || "moyenne"}`}>{idea.priority || "moyenne"}</span>
+                  {idea.week_label && <span>{idea.week_label}</span>}
+                </div>
+                <strong>{idea.done ? "✅ " : ""}{idea.title}</strong>
+                {idea.description && <p>{idea.description}</p>}
+              </div>
+            ))}
+          </SearchBlock>
+
+          <SearchBlock title="Pesées et notes" eyebrow="Chatterie" onOpen={onGoChatterie} empty="Aucune pesée trouvée.">
+            {weightResults.map((weight) => (
+              <div className="searchItem" key={weight.id}>
+                <div className="taskMeta">
+                  <span>{weight.animal_name || weight.animal_key}</span>
+                  <span>{formatDate(weight.date)}</span>
+                </div>
+                <strong>{weight.weight} kg</strong>
+                {weight.note && <p>{weight.note}</p>}
+              </div>
+            ))}
+          </SearchBlock>
+        </>
+      )}
+    </section>
+  );
+}
+
+function SearchBlock({ eyebrow, title, onOpen, empty, children }) {
+  const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
+  return (
+    <div className="card">
+      <div className="cardTitleRow">
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h3>{title}</h3>
+        </div>
+        <button className="textButton" onClick={onOpen}>Ouvrir</button>
+      </div>
+      {!hasChildren ? <p className="muted">{empty}</p> : <div className="searchList">{children}</div>}
+    </div>
+  );
+}
+
+function PlanPage({ tasks, onToggleTask, onAddTask, onDeleteTask }) {
+  const [filter, setFilter] = useState("Tous");
+  const [openForm, setOpenForm] = useState(false);
+  const categories = ["Tous", "Chatterie", "Airbnb", "Animaux", "Santé", "Perso", "Business", "Vacances", "Admin", "Maison", "Plantes", "Plus tard"];
+
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter((task) => filter === "Tous" || task.category === filter)
+      .sort((a, b) => new Date(`${a.date || "2999-01-01"}T${a.time || "12:00"}`) - new Date(`${b.date || "2999-01-01"}T${b.time || "12:00"}`));
+  }, [tasks, filter]);
+
+  const done = tasks.filter((t) => t.done).length;
+  const percent = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+
+  return (
+    <section className="page">
+      <div className="hero">
+        <p className="eyebrow">Plan synchronisé</p>
+        <h2>Agenda & tâches</h2>
+        <p>Les tâches et cases cochées sont stockées dans Supabase.</p>
+      </div>
+
+      <div className="progressCard">
+        <p className="eyebrow">Avancement</p>
+        <h3>{percent}% terminé</h3>
+        <p className="muted">{done} tâche(s) terminée(s) sur {tasks.length}</p>
+        <div className="progressBar"><span style={{ width: `${percent}%` }} /></div>
+      </div>
+
+      <button className="primary fullWidth" onClick={() => setOpenForm(!openForm)}>
+        {openForm ? "Fermer le formulaire" : "+ Ajouter une tâche"}
+      </button>
+
+      {openForm && <TaskForm onAddTask={onAddTask} onClose={() => setOpenForm(false)} />}
+
+      <div className="filterBar">
+        {categories.map((category) => (
+          <button
+            key={category}
+            className={filter === category ? "selectedFilter" : ""}
+            onClick={() => setFilter(category)}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <div className="taskList">
+        {filteredTasks.map((task) => (
+          <div className={task.done ? "taskItem done" : "taskItem"} key={task.id}>
+            <button className="checkButton" onClick={() => onToggleTask(task)}>
+              {task.done ? "✓" : ""}
+            </button>
+
+            <div>
+              <div className="taskMeta">
+                <span>{task.category || "Sans catégorie"}</span>
+                {task.date && <span>{formatDate(task.date)}{task.time ? ` · ${task.time}` : ""}</span>}
+                <span className={`priority ${task.priority || "moyenne"}`}>{task.priority || "moyenne"}</span>
+              </div>
+              <strong>{task.title}</strong>
+              {task.description && <p className="smallText">{task.description}</p>}
+              <button className="deleteTiny" onClick={() => onDeleteTask(task.id)}>Supprimer</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TaskForm({ onAddTask, onClose }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Plus tard");
+  const [priority, setPriority] = useState("moyenne");
+  const [date, setDate] = useState(today);
+  const [time, setTime] = useState("");
+  const [description, setDescription] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!title.trim()) return alert("Entre un titre de tâche.");
+
+    await onAddTask({
+      title,
+      description,
+      category,
+      priority,
+      date,
+      time: time || null,
+      done: false,
+      source: "manual",
+    });
+
+    onClose();
+  }
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <p className="eyebrow">Nouvelle tâche</p>
+      <h3>Ajouter au plan</h3>
+
+      <label>
+        Titre
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex : appeler papa" />
+      </label>
+
+      <label>
+        Catégorie
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          {["Chatterie", "Airbnb", "Animaux", "Santé", "Perso", "Business", "Vacances", "Admin", "Maison", "Plantes", "Plus tard"].map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Priorité
+        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <option value="haute">haute</option>
+          <option value="moyenne">moyenne</option>
+          <option value="basse">basse</option>
+        </select>
+      </label>
+
+      <label>
+        Date
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </label>
+
+      <label>
+        Heure
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+      </label>
+
+      <label>
+        Description
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      </label>
+
+      <button className="primary fullWidth" type="submit">Enregistrer la tâche</button>
+    </form>
+  );
+}
+
+function IdeasPage({ ideas, onAddIdeasFromText, onToggleIdea, onDeleteIdea, onSendIdeaToTask }) {
+  const [text, setText] = useState("");
+  const [filter, setFilter] = useState("Toutes");
+  const categories = ["Toutes", "Chatterie", "Animaux", "Airbnb", "Admin", "Maison", "Plantes", "Business", "Vacances", "Perso", "Santé", "Plus tard"];
+  const filteredIdeas = ideas.filter((idea) => filter === "Toutes" || idea.category === filter);
+  const grouped = groupByWeek(filteredIdeas);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!text.trim()) return alert("Colle une idée ou un dictaphone transcrit.");
+    await onAddIdeasFromText(text);
+    setText("");
+  }
+
+  return (
+    <section className="page">
+      <div className="hero">
+        <p className="eyebrow">Second cerveau</p>
+        <h2>Déposer une idée</h2>
+        <p>Colle une description, un dictaphone transcrit ou un brain dump.</p>
+      </div>
+
+      <form className="card ideaForm" onSubmit={submit}>
+        <p className="eyebrow">Nouvelle entrée</p>
+        <h3>Brain dump</h3>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Ex : il faut appeler papa, réserver le TER pour Lyon, acheter de la litière..."
+        />
+        <button className="primary fullWidth" type="submit">Analyser et classer</button>
+      </form>
+
+      <div className="filterBar">
+        {categories.map((category) => (
+          <button
+            key={category}
+            className={filter === category ? "selectedFilter" : ""}
+            onClick={() => setFilter(category)}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      {Object.keys(grouped).length === 0 ? (
+        <div className="card">
+          <h3>Aucune idée pour l’instant</h3>
+          <p className="muted">Colle ton premier texte.</p>
+        </div>
+      ) : (
+        Object.entries(grouped).map(([week, weekIdeas]) => (
+          <div className="card" key={week}>
+            <p className="eyebrow">Journal de bord</p>
+            <h3>{week}</h3>
+
+            <div className="ideaList">
+              {weekIdeas.map((idea) => (
+                <div className={idea.done ? "ideaItem done" : "ideaItem"} key={idea.id}>
+                  <div className="ideaTop">
+                    <button className="checkButton" onClick={() => onToggleIdea(idea)}>
+                      {idea.done ? "✓" : ""}
+                    </button>
+
+                    <div>
+                      <div className="taskMeta">
+                        <span>{idea.category}</span>
+                        <span className={`priority ${idea.priority}`}>{idea.priority}</span>
+                        <span>{formatDateOnly(idea.created_at)}</span>
+                      </div>
+                      <strong>{idea.title}</strong>
+                      <p>{idea.description}</p>
+
+                      <div className="ideaActions">
+                        <button onClick={() => onSendIdeaToTask(idea)}>→ Plan</button>
+                        <button onClick={() => onDeleteIdea(idea.id)}>Supprimer</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
+
+function AirbnbPage() {
+  const [reports, setReports] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(AIRBNB_STORAGE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const [importMessage, setImportMessage] = useState("");
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const [propertyFilter, setPropertyFilter] = useState("Tous");
+  const [yearFilter, setYearFilter] = useState("Tous");
+
+  useEffect(() => {
+    localStorage.setItem(AIRBNB_STORAGE_KEY, JSON.stringify(reports));
+  }, [reports]);
+
+  async function handlePdfUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLoadingPdf(true);
+    setImportMessage("Lecture du PDF Airbnb...");
+
+    try {
+      const text = await extractTextFromPdf(file);
+      const parsed = parseAirbnbReportText(text, file.name);
+
+      if (!parsed || !parsed.uniqueKey) {
+        setImportMessage("Impossible d’analyser ce PDF. Essaie un rapport Airbnb texte, pas une capture/scanner.");
+        setLoadingPdf(false);
+        return;
+      }
+
+      const alreadyExists = reports.some((report) => report.uniqueKey === parsed.uniqueKey);
+
+      if (alreadyExists) {
+        setImportMessage("Doublon détecté : ce rapport semble déjà importé. Il n’a pas été ajouté une deuxième fois.");
+        setLoadingPdf(false);
+        return;
+      }
+
+      setReports((current) => [parsed, ...current]);
+      setImportMessage(`Rapport importé ✅ ${parsed.year || "année non détectée"} · ${formatCurrency(parsed.summary.netTotal)} net`);
+    } catch (error) {
+      setImportMessage("Erreur lecture PDF : " + error.message);
+    }
+
+    setLoadingPdf(false);
+    event.target.value = "";
+  }
+
+  function clearReports() {
+    if (!confirm("Supprimer les rapports Airbnb importés localement ?")) return;
+    setReports([]);
+    localStorage.removeItem(AIRBNB_STORAGE_KEY);
+  }
+
+  const allPropertyLines = reports.flatMap((report) =>
+    report.properties.map((line) => ({
+      ...line,
+      reportId: report.id,
+      year: report.year,
+      fileName: report.fileName,
+    }))
+  );
+
+  const allMonthLines = reports.flatMap((report) =>
+    report.months.map((line) => ({
+      ...line,
+      reportId: report.id,
+      year: report.year,
+      fileName: report.fileName,
+    }))
+  );
+
+  const years = ["Tous", ...unique(reports.map((report) => String(report.year || "Non détectée")))];
+  const properties = ["Tous", ...unique(allPropertyLines.map((line) => line.normalizedProperty))];
+
+  const filteredPropertyLines = allPropertyLines.filter((line) => {
+    if (propertyFilter !== "Tous" && line.normalizedProperty !== propertyFilter) return false;
+    if (yearFilter !== "Tous" && String(line.year || "Non détectée") !== yearFilter) return false;
+    return true;
+  });
+
+  const filteredReports = reports.filter((report) => {
+    if (yearFilter !== "Tous" && String(report.year || "Non détectée") !== yearFilter) return false;
+    return true;
+  });
+
+  const kpis = useMemo(() => {
+    const gross = sum(filteredPropertyLines.map((line) => line.grossRevenue));
+    const fees = sum(filteredPropertyLines.map((line) => line.serviceFees));
+    const adjustments = sum(filteredPropertyLines.map((line) => line.adjustments));
+    const net = sum(filteredPropertyLines.map((line) => line.netTotal));
+    const nights = sum(filteredPropertyLines.map((line) => line.nights));
+    const avgPerNight = nights ? net / nights : 0;
+
+    return {
+      reports: filteredReports.length,
+      gross,
+      fees,
+      adjustments,
+      net,
+      nights,
+      avgPerNight,
+      properties: unique(filteredPropertyLines.map((line) => line.normalizedProperty)).length,
+    };
+  }, [filteredPropertyLines, filteredReports]);
+
+  const byProperty = useMemo(() => {
+    const map = {};
+
+    filteredPropertyLines.forEach((line) => {
+      const name = line.normalizedProperty || "Non classé";
+
+      if (!map[name]) {
+        map[name] = {
+          name,
+          grossRevenue: 0,
+          serviceFees: 0,
+          adjustments: 0,
+          netTotal: 0,
+          nights: 0,
+          lines: 0,
+        };
+      }
+
+      map[name].grossRevenue += line.grossRevenue || 0;
+      map[name].serviceFees += line.serviceFees || 0;
+      map[name].adjustments += line.adjustments || 0;
+      map[name].netTotal += line.netTotal || 0;
+      map[name].nights += line.nights || 0;
+      map[name].lines += 1;
+    });
+
+    return Object.values(map).sort((a, b) => b.netTotal - a.netTotal);
+  }, [filteredPropertyLines]);
+
+  const byMonth = useMemo(() => {
+    const map = {};
+
+    allMonthLines
+      .filter((line) => yearFilter === "Tous" || String(line.year || "Non détectée") === yearFilter)
+      .forEach((line) => {
+        const name = `${line.month} ${line.year || ""}`.trim();
+
+        if (!map[name]) {
+          map[name] = {
+            name,
+            grossRevenue: 0,
+            netTotal: 0,
+            lines: 0,
+          };
+        }
+
+        map[name].grossRevenue += line.grossRevenue || 0;
+        map[name].netTotal += line.netTotal || 0;
+        map[name].lines += 1;
+      });
+
+    return Object.values(map);
+  }, [allMonthLines, yearFilter]);
+
+  return (
+    <section className="page">
+      <div className="hero">
+        <p className="eyebrow">Airbnb</p>
+        <h2>Recettes & reportings PDF</h2>
+        <p>Importe tes rapports Airbnb PDF pour analyser les revenus, les frais, le net versé, les nuits et les logements.</p>
+      </div>
+
+      <div className="card">
+        <div className="cardTitleRow">
+          <div>
+            <p className="eyebrow">Import PDF</p>
+            <h3>Déposer un rapport Airbnb</h3>
+          </div>
+
+          <label className="fileButton">
+            {loadingPdf ? "Lecture..." : "Choisir PDF"}
+            <input type="file" accept="application/pdf" onChange={handlePdfUpload} />
+          </label>
+        </div>
+
+        <p className="muted">
+          Règles : Chambre 1/2/3/4 = Fives · Chambre côté jardin/rue + Logement entier = Melezio · Wattignies = Wattignies.
+        </p>
+
+        {importMessage && <p className="message">{importMessage}</p>}
+      </div>
+
+      <div className="filtersPanel">
+        <label>
+          Année
+          <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+            {years.map((year) => <option key={year}>{year}</option>)}
+          </select>
+        </label>
+
+        <label>
+          Logement
+          <select value={propertyFilter} onChange={(e) => setPropertyFilter(e.target.value)}>
+            {properties.map((property) => <option key={property}>{property}</option>)}
+          </select>
+        </label>
+
+        <div className="buttonRow alignBottom">
+          <button className="secondaryButton" onClick={() => { setYearFilter("Tous"); setPropertyFilter("Tous"); }}>Reset filtres</button>
+          <button className="dangerButton" onClick={clearReports}>Vider imports</button>
+        </div>
+      </div>
+
+      <div className="kpiGrid">
+        <KpiCard icon="📄" label="Rapports" value={kpis.reports} />
+        <KpiCard icon="💶" label="Revenus bruts" value={formatCurrency(kpis.gross)} />
+        <KpiCard icon="📉" label="Frais Airbnb" value={formatCurrency(kpis.fees)} />
+        <KpiCard icon="🔁" label="Régularisations" value={formatCurrency(kpis.adjustments)} />

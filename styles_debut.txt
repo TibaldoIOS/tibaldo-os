@@ -1,0 +1,301 @@
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(143, 175, 154, 0.35), transparent 35%),
+    linear-gradient(135deg, #f7f4ef 0%, #efe7da 100%);
+}
+
+.loginApp {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.loginCard {
+  width: min(460px, 100%);
+  background: white;
+  border-radius: 26px;
+  padding: 26px;
+  box-shadow: 0 20px 60px rgba(31,77,58,.14);
+}
+
+.brandCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: #1f4d3a;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 25px;
+  margin-bottom: 14px;
+}
+
+.loginCard h1 {
+  margin: 0;
+  color: #1f4d3a;
+}
+
+.loginCard p {
+  color: #6d6257;
+}
+
+.stickyTop {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(31, 77, 58, 0.96);
+  box-shadow: 0 12px 30px rgba(31, 77, 58, 0.12);
+}
+
+.topHeader {
+  color: white;
+  padding: 10px 14px 6px;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #d8c7aa;
+  color: #1f4d3a;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.topHeader h1 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.topHeader p {
+  margin: 1px 0 0;
+  color: rgba(255,255,255,.72);
+  font-size: 11px;
+}
+
+.logoutSmall {
+  background: rgba(255,255,255,.14);
+  color: white;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.topNav {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 5px 6px 8px;
+}
+
+.topNav button {
+  border-radius: 15px;
+  background: transparent;
+  color: rgba(255,255,255,.68);
+  padding: 7px 3px;
+  display: grid;
+  gap: 1px;
+  place-items: center;
+}
+
+.topNav button span { font-size: 18px; }
+.topNav button small { font-size: 9px; }
+
+.topNav button.active {
+  background: rgba(255,255,255,.16);
+  color: white;
+}
+
+.content {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.page {
+  display: grid;
+  gap: 14px;
+}
+
+.hero, .card, .miniCard, .progressCard {
+  background: rgba(255,255,255,.84);
+  border: 1px solid rgba(31,77,58,.09);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.08);
+}
+
+.hero {
+  background: rgba(255,255,255,.72);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #8a6a4f;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+h2 {
+  margin: 0;
+  color: #1f4d3a;
+  font-size: 31px;
+  line-height: 1.05;
+}
+
+h3 {
+  margin: 0 0 12px;
+  color: #1f4d3a;
+  font-size: 21px;
+}
+
+.hero p, .muted {
+  color: #6d6257;
+  line-height: 1.55;
+}
+
+.smallText {
+  color: #6d6257;
+  font-size: 13px;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  color: #1f4d3a;
+  font-weight: 800;
+}
+
+input, textarea, select {
+  width: 100%;
+  border: 1px solid rgba(31,77,58,.16);
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: white;
+  color: #1e1e1e;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.ideaForm textarea {
+  min-height: 180px;
+}
+
+.primary, .secondaryButton, .dangerButton {
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-weight: 900;
+}
+
+.primary {
+  background: #1f4d3a;
+  color: white;
+}
+
+.secondaryButton {
+  background: #f7f4ef;
+  color: #1f4d3a;
+}
+
+.dangerButton {
+  background: #fde8e8;
+  color: #9f1d1d;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.topMessage, .message {
+  background: rgba(255,255,255,.84);
+  border-radius: 18px;
+  padding: 12px 14px;
+  color: #1f4d3a;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(31,77,58,.08);
+}
+
+.dashGrid, .statsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.statBig, .statCard {
+  background: rgba(255,255,255,.84);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.07);
+}
+
+.statBig span, .statCard span {
+  display: block;
+  color: #8a6a4f;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.statBig strong, .statCard strong {
+  color: #1f4d3a;
+  font-size: 26px;
+}
+
+.statButton {
+  text-align: left;
+  border: 0;
+}
+
+.searchHeroButton {
+  background: #1f4d3a;
+  color: white;
+  border-radius: 22px;
+  padding: 18px;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.14);
+}
+
+.searchList, .taskList, .history, .ideaList, .summaryList {
+  display: grid;
+  gap: 10px;
+}
+
+.searchItem, .summaryItem {
+  background: #f7f4ef;
+  border-radius: 18px;
+  padding: 13px;
+}
+
+.searchItem strong, .summaryItem strong {
+  color: #1f4d3a;
+  display: block;
+}
+
+.searchItem p, .summaryItem span {
+  margin: 8px 0 0;
+  color: #6d6257;
+  line-height: 1.45;
+  font-size: 14px;
+  display: block;
+}
+
+.summaryItem a {
+  display: inline-block;
+  margin-top: 8px;

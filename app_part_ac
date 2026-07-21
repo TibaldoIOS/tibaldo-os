@@ -1,0 +1,1000 @@
+    return `${base} __${seen[base]}`;
+  });
+
+  const rows = lines.slice(1).map((line) => {
+    const obj = {};
+
+    columns.forEach((column, index) => {
+      obj[column] = (line[index] || "").trim();
+    });
+
+    return obj;
+  });
+
+  return { columns, rows };
+}
+
+function detectHousekeepingColumns(columns) {
+  const minuteColumns = findColumns(columns, [
+    "temps passe sur la prestation",
+    "temps passé sur la prestation",
+    "temps passe",
+    "temps passé",
+    "minutes"
+  ]);
+
+  return {
+    date:
+      exactColumn(columns, "Horodateur") ||
+      findColumn(columns, ["horodateur", "date", "timestamp", "jour"]),
+
+    employee:
+      exactColumn(columns, "Quel est ton prénom ?") ||
+      findColumn(columns, ["prenom", "prénom", "salarié", "salarie", "employé", "employee", "prestataire"]),
+
+    minutes:
+      minuteColumns[0] ||
+      exactColumn(columns, "Temps passé sur la prestation (minutes)") ||
+      findColumn(columns, ["temps passe sur la prestation", "temps passé sur la prestation", "minutes"]),
+
+    minuteColumns,
+
+    purchases:
+      exactColumn(columns, "Montant Achats") ||
+      findColumn(columns, ["montant achats", "montant achat", "montant"]),
+
+    products:
+      findColumn(columns, ["quels produits", "produits achet", "achats effectues", "achats effectués"]),
+
+    receipt:
+      exactColumn(columns, "Tickets de caisse") ||
+      findColumn(columns, ["tickets de caisse", "ticket de caisse", "fichiers envoyes", "fichiers envoyés", "recu", "reçu"]),
+
+    property:
+      exactColumn(columns, "Quel est le logement concerné par ta prestation ?") ||
+      findColumn(columns, ["logement concerne", "logement concerné"]),
+
+    surfaces:
+      exactColumn(columns, "Quelles sont les surfaces communes que tu as nettoyé ?") ||
+      findColumn(columns, ["surfaces communes", "nettoyé", "nettoye"]),
+
+    rooms:
+      exactColumn(columns, "Numéro des chambres préparées ?") ||
+      findColumn(columns, ["numero des chambres preparees", "numéro des chambres préparées", "chambres preparees", "chambres préparées"]),
+
+    remarks:
+      exactColumn(columns, "Remarques") ||
+      exactColumn(columns, "Remarques ?") ||
+      findColumn(columns, ["remarques", "remarque", "commentaire"]),
+
+    linenPresence:
+      exactColumn(columns, "Linge OK ?") ||
+      findColumn(columns, ["linge ok", "linge présent", "linge present"]),
+
+    linenCleaned:
+      exactColumn(columns, "Combien de paires de draps as-tu nettoyées ?") ||
+      findColumn(columns, ["combien de paires", "paires de draps", "nombre de jeux nettoy", "jeux nettoy", "linge nettoy", "lots nettoy", "lot nettoy"]),
+
+    type:
+      exactColumn(columns, "Type de prestations") ||
+      exactColumn(columns, "Quel type de prestation as-tu réalisé ?") ||
+      findColumn(columns, ["type de prestation", "type de prestations", "prestation realise", "prestation réalisé", "mission", "service client", "admin"]),
+  };
+}
+
+function exactColumn(columns, exactName) {
+  return columns.find((column) => normalizeText(column) === normalizeText(exactName));
+}
+
+function findColumn(columns, keywords) {
+  const normalizedKeywords = keywords.map(normalizeText);
+  return columns.find((column) => {
+    const normalizedColumn = normalizeText(column);
+    return normalizedKeywords.some((keyword) => normalizedColumn.includes(keyword));
+  });
+}
+
+function findColumns(columns, keywords) {
+  const normalizedKeywords = keywords.map(normalizeText);
+
+  return columns.filter((column) => {
+    const normalizedColumn = normalizeText(column);
+    return normalizedKeywords.some((keyword) => normalizedColumn.includes(keyword));
+  });
+}
+
+function normalizeText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getCell(row, column) {
+  if (!column) return "";
+  return row[column] || "";
+}
+
+function getFirstNonEmptyCell(row, columns) {
+  const list = Array.isArray(columns) ? columns : [columns];
+
+  for (const column of list) {
+    const value = getCell(row, column);
+    if (String(value || "").trim()) return value;
+  }
+
+  return "";
+}
+
+function normalizeEmployeeName(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "Non renseigné";
+  const lower = normalizeText(clean);
+
+  if (lower.includes("rachida")) return "Rachida";
+  if (lower.includes("gaelle") || lower.includes("gaëlle")) return "Gaelle";
+  if (lower.includes("jennifer")) return "Jennifer";
+
+  return clean;
+}
+
+function normalizePropertyName(value) {
+  const clean = String(value || "").trim();
+  const lower = normalizeText(clean);
+
+  if (!clean) return "Non renseigné";
+  if (lower.includes("fives")) return "Fives";
+  if (lower.includes("melezio") || lower.includes("mélézio")) return "Melezio";
+  if (lower.includes("wattignies")) return "Wattignies";
+
+  return clean;
+}
+
+function normalizeServiceType(value) {
+  const clean = String(value || "").trim();
+  const lower = normalizeText(clean);
+
+  if (!clean) return "Non renseigné";
+  if (lower.includes("service client")) return "Service client";
+  if (lower.includes("mission")) return "Service client";
+  if (lower.includes("admin")) return "Admin";
+  if (lower.includes("linge")) return "Linge";
+  if (lower.includes("drap")) return "Linge";
+  if (lower.includes("menage") || lower.includes("ménage")) return "Ménage Airbnb";
+
+  return clean;
+}
+
+function inferHousekeepingServiceType(row, mapping, employee, property, roomsText, surfaces, remarks, linenCleaned) {
+  const explicitType = normalizeServiceType(getCell(row, mapping.type));
+  const allText = normalizeText([
+    explicitType,
+    getCell(row, mapping.type),
+    employee,
+    property,
+    roomsText,
+    surfaces,
+    remarks
+  ].join(" "));
+
+  if (explicitType !== "Non renseigné") return explicitType;
+
+  if (linenCleaned > 0) return "Linge";
+
+  if (
+    allText.includes("service client") ||
+    allText.includes("mission") ||
+    allText.includes("admin")
+  ) {
+    return "Service client";
+  }
+
+  if (
+    property !== "Non renseigné" ||
+    String(roomsText || "").trim() ||
+    String(surfaces || "").trim()
+  ) {
+    return "Ménage Airbnb";
+  }
+
+  if (
+    employee === "Jennifer" &&
+    (
+      allText.includes("linge") ||
+      allText.includes("drap") ||
+      allText.includes("parure") ||
+      allText.includes("lits changer")
+    )
+  ) {
+    return "Linge / ménage à vérifier";
+  }
+
+  return "Non renseigné";
+}
+
+function isAdminService(type, remarks, products) {
+  const t = normalizeText(`${type} ${remarks} ${products}`);
+  return t.includes("admin") || t.includes("service client") || t.includes("mission");
+}
+
+function parseFrenchNumber(value) {
+  if (value === null || value === undefined) return 0;
+
+  const cleaned = String(value)
+    .replace(/\s/g, "")
+    .replace("€", "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function parseAnyDate(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+
+  const frenchMatch = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (frenchMatch) {
+    const day = frenchMatch[1].padStart(2, "0");
+    const month = frenchMatch[2].padStart(2, "0");
+    let year = frenchMatch[3];
+    if (year.length === 2) year = "20" + year;
+    return new Date(`${year}-${month}-${day}T12:00:00`);
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function countRooms(text) {
+  if (!text) return 0;
+  const matches = String(text).match(/chambre\s*\d+/gi);
+  if (!matches) return 0;
+
+  return unique(matches.map((room) => normalizeText(room).replace(/\s+/g, " "))).length;
+}
+
+function detectAnomaly(text) {
+  const t = normalizeText(text);
+  if (!t.trim()) return false;
+  if (["ras", "r.a.s"].includes(t.trim())) return false;
+
+  return [
+    "non defait",
+    "non défait",
+    "pas d'electricite",
+    "pas d’électricité",
+    "hs",
+    "tache",
+    "tachée",
+    "tachee",
+    "client",
+    "resali",
+    "trace",
+    "noire",
+    "manque",
+    "casse",
+    "sale",
+    "probleme",
+    "problème",
+  ].some((word) => t.includes(normalizeText(word)));
+}
+
+function groupSummaryHousekeeping(rows, key, hourlyRate, linenRate) {
+  const map = {};
+
+  rows.forEach((row) => {
+    const name = row[key] || "Non renseigné";
+
+    if (!map[name]) {
+      map[name] = {
+        name,
+        count: 0,
+        minutes: 0,
+        hours: 0,
+        purchases: 0,
+        rooms: 0,
+        linenCleaned: 0,
+        linenPay: 0,
+        laborEstimate: 0,
+      };
+    }
+
+    map[name].count += 1;
+    map[name].minutes += row.minutes || 0;
+    map[name].hours += row.hours || 0;
+    map[name].purchases += row.purchases || 0;
+    map[name].rooms += row.roomCount || 0;
+    map[name].linenCleaned += row.linenCleaned || 0;
+    map[name].linenPay = map[name].linenCleaned * linenRate;
+    map[name].laborEstimate = map[name].hours * hourlyRate;
+  });
+
+  return Object.values(map).sort((a, b) => b.count - a.count);
+}
+
+function groupProducts(rows) {
+  const map = {};
+
+  rows.forEach((row) => {
+    if (!row.products && !row.purchases) return;
+
+    const rawProducts = String(row.products || "Achat non détaillé")
+      .split(/[,;/\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const products = rawProducts.length ? rawProducts : ["Achat non détaillé"];
+
+    products.forEach((product) => {
+      const name = product || "Achat non détaillé";
+
+      if (!map[name]) {
+        map[name] = {
+          name,
+          count: 0,
+          amount: 0,
+        };
+      }
+
+      map[name].count += 1;
+      map[name].amount += row.purchases || 0;
+    });
+  });
+
+  return Object.values(map).sort((a, b) => b.amount - a.amount);
+}
+
+function analyzeIdeas(text) {
+  const chunks = text
+    .split(/[\n.;!?]+/)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length > 8);
+
+  const source = chunks.length ? chunks : [text.trim()];
+  const today = new Date().toISOString().slice(0, 10);
+
+  return source.map((chunk) => ({
+    title: makeTitle(chunk),
+    description: chunk,
+    category: detectCategory(chunk),
+    priority: detectPriority(chunk),
+    status: "a_traiter",
+    done: false,
+    week_label: getWeekLabel(today),
+  }));
+}
+
+function detectCategory(text) {
+  const t = text.toLowerCase();
+  const n = normalizeText(text);
+
+  if (has(n, [
+    "impot",
+    "impots",
+    "declaration",
+    "declarer",
+    "fiscal",
+    "fiscale",
+    "taxe",
+    "taxes",
+    "comptable",
+    "don",
+    "succession",
+    "notaire",
+    "justificatif",
+    "administratif",
+    "urssaf",
+    "tva",
+    "banque",
+    "releve",
+    "relevé",
+    "syndic",
+    "appel de fonds"
+  ])) return "Admin";
+
+  if (has(t, ["uzy", "yuzi", "zephyr", "zéphyr", "bali", "chaton", "mise bas", "vétérinaire", "litière"])) return "Chatterie";
+  if (has(t, ["chien", "chat", "poulailler", "poussin", "coq", "poule", "adela", "nadine"])) return "Animaux";
+  if (has(t, ["airbnb", "ménage", "lit", "client", "arrivée", "départ", "gaël", "jennifer"])) return "Airbnb";
+  if (has(t, ["bananier", "plante", "pot", "mur végétal", "palmier", "olivier"])) return "Plantes";
+  if (has(t, ["lyon", "annecy", "ter", "tgv", "ouigo", "vacances", "cousine"])) return "Vacances";
+  if (has(t, ["ritaline", "novvasy", "addictologue", "médecin", "santé"])) return "Santé";
+  if (has(t, ["papa", "papy", "papi", "restaurant", "collègue"])) return "Perso";
+  if (has(t, ["site", "internet", "le bon coin", "vente", "business", "table", "housse"])) return "Business";
+  if (has(t, ["maison", "chambre", "lave-vaisselle", "jacuzzi", "aquarium", "escaliers"])) return "Maison";
+
+  return "Plus tard";
+}
+
+function detectPriority(text) {
+  const t = text.toLowerCase();
+
+  if (has(t, ["urgent", "demain", "aujourd’hui", "aujourd'hui", "avant", "mise bas", "vétérinaire", "arrivée", "départ", "réserver"])) return "haute";
+  if (has(t, ["il faut", "je dois", "à faire", "penser", "relancer", "appeler"])) return "moyenne";
+
+  return "basse";
+}
+
+function makeTitle(text) {
+  const cleaned = text.trim();
+  return cleaned.length <= 72 ? cleaned : cleaned.slice(0, 72).trim() + "…";
+}
+
+function has(text, words) {
+  return words.some((word) => text.includes(word));
+}
+
+function groupByWeek(ideas) {
+  return ideas.reduce((groups, idea) => {
+    const week = idea.week_label || getWeekLabel(idea.created_at?.slice(0, 10));
+    if (!groups[week]) groups[week] = [];
+    groups[week].push(idea);
+    return groups;
+  }, {});
+}
+
+function getWeekLabel(date) {
+  const d = new Date((date || new Date().toISOString().slice(0, 10)) + "T12:00:00");
+  const day = d.getDay() || 7;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - day + 1);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  return `Semaine du ${monday.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} au ${sunday.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}`;
+}
+
+function formatDate(date) {
+  return new Date(date + "T12:00:00").toLocaleDateString("fr-FR");
+}
+
+function formatDateOnly(date) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("fr-FR");
+}
+
+function shortDate(date) {
+  return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function formatNumber(value) {
+  const number = Number(value) || 0;
+  return number.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+}
+
+function formatCurrency(value) {
+  const number = Number(value) || 0;
+  return number.toLocaleString("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  });
+}
+
+function sum(values) {
+  return values.reduce((total, value) => total + (Number(value) || 0), 0);
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+const styles = `
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f4ef;
+  color: #1e1e1e;
+}
+
+button, input, select, textarea { font: inherit; }
+button { border: 0; cursor: pointer; }
+
+.app {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(143, 175, 154, 0.35), transparent 35%),
+    linear-gradient(135deg, #f7f4ef 0%, #efe7da 100%);
+}
+
+.loginApp {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.loginCard {
+  width: min(460px, 100%);
+  background: white;
+  border-radius: 26px;
+  padding: 26px;
+  box-shadow: 0 20px 60px rgba(31,77,58,.14);
+}
+
+.brandCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: #1f4d3a;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 25px;
+  margin-bottom: 14px;
+}
+
+.loginCard h1 {
+  margin: 0;
+  color: #1f4d3a;
+}
+
+.loginCard p {
+  color: #6d6257;
+}
+
+.stickyTop {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(31, 77, 58, 0.96);
+  box-shadow: 0 12px 30px rgba(31, 77, 58, 0.12);
+}
+
+.topHeader {
+  color: white;
+  padding: 10px 14px 6px;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #d8c7aa;
+  color: #1f4d3a;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.topHeader h1 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.topHeader p {
+  margin: 1px 0 0;
+  color: rgba(255,255,255,.72);
+  font-size: 11px;
+}
+
+.logoutSmall {
+  background: rgba(255,255,255,.14);
+  color: white;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.topNav {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 5px 6px 8px;
+}
+
+.topNav button {
+  border-radius: 15px;
+  background: transparent;
+  color: rgba(255,255,255,.68);
+  padding: 7px 3px;
+  display: grid;
+  gap: 1px;
+  place-items: center;
+}
+
+.topNav button span { font-size: 18px; }
+.topNav button small { font-size: 9px; }
+
+.topNav button.active {
+  background: rgba(255,255,255,.16);
+  color: white;
+}
+
+.content {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.page {
+  display: grid;
+  gap: 14px;
+}
+
+.hero, .card, .miniCard, .progressCard {
+  background: rgba(255,255,255,.84);
+  border: 1px solid rgba(31,77,58,.09);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.08);
+}
+
+.hero {
+  background: rgba(255,255,255,.72);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #8a6a4f;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+h2 {
+  margin: 0;
+  color: #1f4d3a;
+  font-size: 31px;
+  line-height: 1.05;
+}
+
+h3 {
+  margin: 0 0 12px;
+  color: #1f4d3a;
+  font-size: 21px;
+}
+
+.hero p, .muted {
+  color: #6d6257;
+  line-height: 1.55;
+}
+
+.smallText {
+  color: #6d6257;
+  font-size: 13px;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  color: #1f4d3a;
+  font-weight: 800;
+}
+
+input, textarea, select {
+  width: 100%;
+  border: 1px solid rgba(31,77,58,.16);
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: white;
+  color: #1e1e1e;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.ideaForm textarea {
+  min-height: 180px;
+}
+
+.primary, .secondaryButton, .dangerButton {
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-weight: 900;
+}
+
+.primary {
+  background: #1f4d3a;
+  color: white;
+}
+
+.secondaryButton {
+  background: #f7f4ef;
+  color: #1f4d3a;
+}
+
+.dangerButton {
+  background: #fde8e8;
+  color: #9f1d1d;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.topMessage, .message {
+  background: rgba(255,255,255,.84);
+  border-radius: 18px;
+  padding: 12px 14px;
+  color: #1f4d3a;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(31,77,58,.08);
+}
+
+.dashGrid, .statsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.statBig, .statCard {
+  background: rgba(255,255,255,.84);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.07);
+}
+
+.statBig span, .statCard span {
+  display: block;
+  color: #8a6a4f;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.statBig strong, .statCard strong {
+  color: #1f4d3a;
+  font-size: 26px;
+}
+
+.statButton {
+  text-align: left;
+  border: 0;
+}
+
+.searchHeroButton {
+  background: #1f4d3a;
+  color: white;
+  border-radius: 22px;
+  padding: 18px;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 0 16px 40px rgba(31,77,58,.14);
+}
+
+.searchList, .taskList, .history, .ideaList, .summaryList {
+  display: grid;
+  gap: 10px;
+}
+
+.searchItem, .summaryItem {
+  background: #f7f4ef;
+  border-radius: 18px;
+  padding: 13px;
+}
+
+.searchItem strong, .summaryItem strong {
+  color: #1f4d3a;
+  display: block;
+}
+
+.searchItem p, .summaryItem span {
+  margin: 8px 0 0;
+  color: #6d6257;
+  line-height: 1.45;
+  font-size: 14px;
+  display: block;
+}
+
+.summaryItem a {
+  display: inline-block;
+  margin-top: 8px;
+  color: #1f4d3a;
+  font-weight: 900;
+}
+
+.progressBar {
+  height: 12px;
+  background: #f7f4ef;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progressBar span {
+  height: 100%;
+  display: block;
+  background: #1f4d3a;
+  border-radius: 999px;
+}
+
+.filterBar, .animalSelector {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.filterBar button, .animalSelector button {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255,255,255,.82);
+  color: #1f4d3a;
+  padding: 10px 13px;
+  font-weight: 800;
+  border: 1px solid rgba(31,77,58,.08);
+}
+
+.filterBar button.selectedFilter, .animalSelector button.selected {
+  background: #1f4d3a;
+  color: white;
+}
+
+.taskItem, .ideaItem {
+  background: rgba(255,255,255,.86);
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: 0 14px 34px rgba(31,77,58,.07);
+}
+
+.taskItem {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+}
+
+.ideaTop {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+}
+
+.taskItem.done, .ideaItem.done {
+  opacity: .58;
+}
+
+.taskItem.done strong, .ideaItem.done strong {
+  text-decoration: line-through;
+}
+
+.checkButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #f7f4ef;
+  color: #1f4d3a;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.taskMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.taskMeta span {
+  background: #f7f4ef;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #6d6257;
+  font-weight: 800;
+}
+
+.priority.haute { color: #9f1d1d; }
+.priority.moyenne { color: #8a5b00; }
+.priority.basse { color: #1f4d3a; }
+
+.deleteTiny {
+  margin-top: 10px;
+  background: #fde8e8;
+  color: #9f1d1d;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ideaItem p {
+  color: #6d6257;
+  margin: 8px 0 0;
+  line-height: 1.45;
+}
+
+.ideaActions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.ideaActions button, .textButton {
+  color: #1f4d3a;
+  background: #f7f4ef;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-weight: 800;
+}
+
+.animalCard {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.animalEmoji {
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  background: #d8c7aa;
+  display: grid;
+  place-items: center;
+  font-size: 32px;
+  flex: 0 0 auto;
+}
+
+.formCard {
+  border: 2px solid rgba(31,77,58,.12);
+}
+
+.cardTitleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ok { color: #1f7a4d !important; }
+.danger { color: #b3261e !important; }
+
+.chart {
+  color: #1f4d3a;
+}
+
+.chart svg {
+  width: 100%;
+  height: 190px;
+  background: #f7f4ef;
+  border-radius: 20px;
+  padding: 10px;
+}
+
+.chartLabels {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.chartLabels span {
+  flex: 0 0 auto;
+  background: #f7f4ef;
+  color: #6d6257;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.historyItem {
+  background: #f7f4ef;
+  border-radius: 18px;
+  padding: 13px;
+  display: grid;
+  gap: 8px;
+}
+
+.historyItem strong, .historyItem span {
+  display: block;
+}
+
+.historyItem span, .historyRight span {
