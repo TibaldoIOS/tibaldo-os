@@ -4,6 +4,7 @@ import {
   calculateCleanerBalances,
   DEFAULT_HOURLY_RATE,
   DEFAULT_LINEN_RATE,
+  getCurrentWeekStart,
 } from "./services/cleanerBalanceService";
 
 const SHEET_CSV_URL =
@@ -22,14 +23,16 @@ export default function BalancesPage() {
     try {
       const [sheetResponse, paymentsResult] = await Promise.all([
         fetch(SHEET_CSV_URL, { cache: "no-store" }),
-        supabase.from("cleaner_payments").select("cleaner_name, amount"),
+        supabase.from("cleaner_payments").select("cleaner_name, amount, payment_date, note"),
       ]);
 
       if (!sheetResponse.ok) throw new Error(`Google Sheets a répondu ${sheetResponse.status}`);
       if (paymentsResult.error) throw paymentsResult.error;
 
       const csvText = await sheetResponse.text();
-      setRows(calculateCleanerBalances(csvText, paymentsResult.data || []));
+      setRows(calculateCleanerBalances(csvText, paymentsResult.data || [], {
+        startDate: getCurrentWeekStart(),
+      }));
       setUpdatedAt(new Date());
     } catch (loadError) {
       console.error("Erreur de rapprochement des balances", loadError);
@@ -57,7 +60,8 @@ export default function BalancesPage() {
         <p className="eyebrow">Balances</p>
         <h2>Soldes en temps réel</h2>
         <p className="muted">
-          Heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h, linge × {DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements enregistrés.
+          Semaine en cours depuis le lundi {getCurrentWeekStart().toLocaleDateString("fr-FR")} : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h,
+          linge × {DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements de la semaine. Les virements notés « solde » remettent le compte à zéro.
         </p>
         <button className="primary" onClick={load} disabled={loading}>
           {loading ? "Actualisation…" : "Actualiser les soldes"}

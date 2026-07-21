@@ -8,7 +8,11 @@ et la table Supabase `cleaner_payments` (virements saisis manuellement).
 
 Le calcul appliqué par personne est :
 
-`solde = heures × 15 € + linge × 3 € + achats - virements`
+`solde hebdomadaire = heures × 15 € + linge × 3 € + achats - virements`
+
+Seules les opérations depuis le lundi de la semaine en cours sont prises en
+compte. Un virement dont la note contient « solde » constitue une remise à zéro
+et n'est pas déduit une seconde fois du nouveau solde hebdomadaire.
 
 Les noms Jennifer, Rachida et Gaëlle sont normalisés pour éviter qu'une variante
 d'orthographe crée un second solde. La logique testable se trouve dans

@@ -35,3 +35,22 @@ test("keeps a cleaner with payments but no sheet rows to show an advance", () =>
   assert.equal(row.total_due, 0);
   assert.equal(row.balance, -30);
 });
+
+test("shows only the current period and treats a settlement transfer as a reset", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "19/07/2026,Gaelle,600",
+    "20/07/2026,Gaëlle,120",
+    "21/07/2026,Gaelle,60",
+  ].join("\n");
+
+  const [row] = calculateCleanerBalances(csv, [
+    { cleaner_name: "Gaelle", amount: 500, payment_date: "2026-07-20", note: "Virement en solde" },
+    { cleaner_name: "Gaelle", amount: 10, payment_date: "2026-07-21", note: "Acompte" },
+  ], { startDate: new Date(2026, 6, 20) });
+
+  assert.equal(row.total_hours, 3);
+  assert.equal(row.total_due, 45);
+  assert.equal(row.total_paid, 10);
+  assert.equal(row.balance, 35);
+});

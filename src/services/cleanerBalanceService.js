@@ -1,6 +1,14 @@
 export const DEFAULT_HOURLY_RATE = 15;
 export const DEFAULT_LINEN_RATE = 3;
 
+export function getCurrentWeekStart(now = new Date()) {
+  const start = new Date(now);
+  const daysSinceMonday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
 export function parseHousekeepingCsv(csvText) {
   const matrix = parseCsvMatrix(csvText);
   const columns = makeUniqueColumns(matrix[0] || []);
@@ -14,11 +22,15 @@ export function parseHousekeepingCsv(csvText) {
 export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   const hourlyRate = toNumber(options.hourlyRate ?? DEFAULT_HOURLY_RATE);
   const linenRate = toNumber(options.linenRate ?? DEFAULT_LINEN_RATE);
+  const startDate = options.startDate ? startOfDay(options.startDate) : null;
   const { columns, rows } = parseHousekeepingCsv(csvText);
   const mapping = detectColumns(columns);
   const balances = new Map();
 
   for (const row of rows) {
+    const workDate = parseDate(cell(row, mapping.date));
+    if (startDate && (!workDate || workDate < startDate)) continue;
+
     const cleanerName = normalizeCleanerName(cell(row, mapping.employee));
     if (!cleanerName) continue;
 
@@ -36,6 +48,10 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   }
 
   for (const payment of payments) {
+    const paymentDate = parseDate(payment.payment_date);
+    if (isSettlementPayment(payment)) continue;
+    if (startDate && (!paymentDate || paymentDate < startDate)) continue;
+
     const cleanerName = normalizeCleanerName(payment.cleaner_name);
     if (!cleanerName) continue;
     const current = getBalance(balances, cleanerName);
@@ -75,11 +91,38 @@ function getBalance(balances, cleanerName) {
 
 function detectColumns(columns) {
   return {
+    date: exact(columns, "Horodateur") || find(columns, ["horodateur", "date", "timestamp", "jour"]),
     employee: exact(columns, "Quel est ton prénom ?") || find(columns, ["prenom", "salarié", "salarie", "employé", "employee", "prestataire"]),
     minuteColumns: findAll(columns, ["temps passe sur la prestation", "temps passé sur la prestation", "minutes"]),
     purchases: exact(columns, "Montant Achats") || find(columns, ["montant achats", "montant achat"]),
     linen: exact(columns, "Combien de paires de draps as-tu nettoyées ?") || find(columns, ["combien de paires", "paires de draps", "jeux nettoy", "linge nettoy", "lots nettoy"]),
   };
+}
+
+function isSettlementPayment(payment) {
+  const note = normalize(payment.note);
+  return /(^|\s)(solde|soldee|soldees|soldes)(\s|$)/.test(note);
+}
+
+function startOfDay(value) {
+  const date = value instanceof Date ? new Date(value) : parseDate(value);
+  if (!date) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : new Date(value);
+  const raw = String(value).trim();
+  const french = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
+  if (french) {
+    const year = french[3].length === 2 ? `20${french[3]}` : french[3];
+    const date = new Date(Number(year), Number(french[2]) - 1, Number(french[1]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function normalizeCleanerName(value) {
