@@ -54,3 +54,23 @@ test("shows only the current period and treats a settlement transfer as a reset"
   assert.equal(row.total_paid, 10);
   assert.equal(row.balance, 35);
 });
+
+test("applies the same selected start and end dates to hours and payments", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "20/07/2026,Jennifer,60",
+    "21/07/2026,Jennifer,120",
+    "22/07/2026,Jennifer,180",
+  ].join("\n");
+
+  const [row] = calculateCleanerBalances(csv, [
+    { cleaner_name: "Jennifer", amount: 5, payment_date: "2026-07-20" },
+    { cleaner_name: "Jennifer", amount: 10, payment_date: "2026-07-21" },
+    { cleaner_name: "Jennifer", amount: 20, payment_date: "2026-07-22" },
+  ], { startDate: "2026-07-21", endDate: "2026-07-21" });
+
+  assert.equal(row.total_hours, 2);
+  assert.equal(row.total_due, 30);
+  assert.equal(row.total_paid, 10);
+  assert.equal(row.balance, 20);
+});

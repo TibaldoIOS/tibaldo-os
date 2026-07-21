@@ -11,10 +11,12 @@ const SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTWc95CaKrduwyhwg3t4LlfjLDI85oPVOA0v1_Dab6C5b1DX_WmgU5vWAGpsJ4oVcED011gqTsxLIWh/pub?output=csv";
 
 export default function BalancesPage() {
-  const [rows, setRows] = useState([]);
+  const [source, setSource] = useState({ csvText: "", payments: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [startDate, setStartDate] = useState(() => formatInputDate(getCurrentWeekStart()));
+  const [endDate, setEndDate] = useState(() => formatInputDate(new Date()));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,9 +32,7 @@ export default function BalancesPage() {
       if (paymentsResult.error) throw paymentsResult.error;
 
       const csvText = await sheetResponse.text();
-      setRows(calculateCleanerBalances(csvText, paymentsResult.data || [], {
-        startDate: getCurrentWeekStart(),
-      }));
+      setSource({ csvText, payments: paymentsResult.data || [] });
       setUpdatedAt(new Date());
     } catch (loadError) {
       console.error("Erreur de rapprochement des balances", loadError);
@@ -48,6 +48,11 @@ export default function BalancesPage() {
     load();
   }, [load]);
 
+  const rows = useMemo(() => calculateCleanerBalances(source.csvText, source.payments, {
+    startDate: startDate || null,
+    endDate: endDate || null,
+  }), [source, startDate, endDate]);
+
   const totals = useMemo(() => ({
     due: rows.reduce((sum, row) => sum + row.total_due, 0),
     paid: rows.reduce((sum, row) => sum + row.total_paid, 0),
@@ -60,9 +65,19 @@ export default function BalancesPage() {
         <p className="eyebrow">Balances</p>
         <h2>Soldes en temps réel</h2>
         <p className="muted">
-          Semaine en cours depuis le lundi {getCurrentWeekStart().toLocaleDateString("fr-FR")} : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h,
-          linge × {DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements de la semaine. Les virements notés « solde » remettent le compte à zéro.
+          Période sélectionnée : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h, linge × {DEFAULT_LINEN_RATE} €,
+          achats remboursables, moins les virements de la même période. Les virements notés « solde » remettent le compte à zéro.
         </p>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "18px 0" }}>
+          <label>
+            Date début
+            <input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} />
+          </label>
+          <label>
+            Date fin
+            <input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
+          </label>
+        </div>
         <button className="primary" onClick={load} disabled={loading}>
           {loading ? "Actualisation…" : "Actualiser les soldes"}
         </button>
@@ -107,6 +122,13 @@ export default function BalancesPage() {
       </div>
     </section>
   );
+}
+
+function formatInputDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function Card({ title, value, color = "#1f4d3a" }) {

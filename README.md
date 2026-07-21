@@ -10,9 +10,11 @@ Le calcul appliqué par personne est :
 
 `solde hebdomadaire = heures × 15 € + linge × 3 € + achats - virements`
 
-Seules les opérations depuis le lundi de la semaine en cours sont prises en
-compte. Un virement dont la note contient « solde » constitue une remise à zéro
-et n'est pas déduit une seconde fois du nouveau solde hebdomadaire.
+L'écran permet de sélectionner librement une date de début et une date de fin.
+Les heures et les virements utilisent exactement la même période. La sélection
+par défaut va du lundi de la semaine en cours à aujourd'hui. Un virement dont la
+note contient « solde » constitue une remise à zéro et n'est pas déduit une
+seconde fois du nouveau solde.
 
 Les noms Jennifer, Rachida et Gaëlle sont normalisés pour éviter qu'une variante
 d'orthographe crée un second solde. La logique testable se trouve dans

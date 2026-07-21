@@ -23,13 +23,16 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   const hourlyRate = toNumber(options.hourlyRate ?? DEFAULT_HOURLY_RATE);
   const linenRate = toNumber(options.linenRate ?? DEFAULT_LINEN_RATE);
   const startDate = options.startDate ? startOfDay(options.startDate) : null;
+  const endDate = options.endDate ? endOfDay(options.endDate) : null;
   const { columns, rows } = parseHousekeepingCsv(csvText);
   const mapping = detectColumns(columns);
   const balances = new Map();
 
   for (const row of rows) {
     const workDate = parseDate(cell(row, mapping.date));
-    if (startDate && (!workDate || workDate < startDate)) continue;
+    if ((startDate || endDate) && !workDate) continue;
+    if (startDate && workDate < startDate) continue;
+    if (endDate && workDate > endDate) continue;
 
     const cleanerName = normalizeCleanerName(cell(row, mapping.employee));
     if (!cleanerName) continue;
@@ -50,7 +53,9 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   for (const payment of payments) {
     const paymentDate = parseDate(payment.payment_date);
     if (isSettlementPayment(payment)) continue;
-    if (startDate && (!paymentDate || paymentDate < startDate)) continue;
+    if ((startDate || endDate) && !paymentDate) continue;
+    if (startDate && paymentDate < startDate) continue;
+    if (endDate && paymentDate > endDate) continue;
 
     const cleanerName = normalizeCleanerName(payment.cleaner_name);
     if (!cleanerName) continue;
@@ -108,6 +113,13 @@ function startOfDay(value) {
   const date = value instanceof Date ? new Date(value) : parseDate(value);
   if (!date) return null;
   date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(value) {
+  const date = value instanceof Date ? new Date(value) : parseDate(value);
+  if (!date) return null;
+  date.setHours(23, 59, 59, 999);
   return date;
 }
 
