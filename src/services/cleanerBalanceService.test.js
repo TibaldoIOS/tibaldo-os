@@ -36,7 +36,7 @@ test("keeps a cleaner with payments but no sheet rows to show an advance", () =>
   assert.equal(row.balance, -30);
 });
 
-test("shows only the current period and treats a settlement transfer as a reset", () => {
+test("starts each cleaner balance after their latest settlement transfer", () => {
   const csv = [
     "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
     "19/07/2026,Gaelle,600",
@@ -47,12 +47,30 @@ test("shows only the current period and treats a settlement transfer as a reset"
   const [row] = calculateCleanerBalances(csv, [
     { cleaner_name: "Gaelle", amount: 500, payment_date: "2026-07-20", note: "Virement en solde" },
     { cleaner_name: "Gaelle", amount: 10, payment_date: "2026-07-21", note: "Acompte" },
-  ], { startDate: new Date(2026, 6, 20) });
+  ]);
 
-  assert.equal(row.total_hours, 3);
-  assert.equal(row.total_due, 45);
+  assert.equal(row.total_hours, 1);
+  assert.equal(row.total_due, 15);
   assert.equal(row.total_paid, 10);
-  assert.equal(row.balance, 35);
+  assert.equal(row.balance, 5);
+});
+
+test("uses a different latest settlement date for each cleaner", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "18/07/2026,Jennifer,60",
+    "20/07/2026,Jennifer,120",
+    "20/07/2026,Rachida,60",
+    "22/07/2026,Rachida,180",
+  ].join("\n");
+
+  const result = calculateCleanerBalances(csv, [
+    { cleaner_name: "Jennifer", amount: 30, payment_date: "2026-07-18", note: "Solde" },
+    { cleaner_name: "Rachida", amount: 15, payment_date: "2026-07-20", note: "Compte soldé" },
+  ]);
+
+  assert.equal(result.find((row) => row.cleaner_name === "Jennifer").balance, 30);
+  assert.equal(result.find((row) => row.cleaner_name === "Rachida").balance, 45);
 });
 
 test("applies the same selected start and end dates to hours and payments", () => {

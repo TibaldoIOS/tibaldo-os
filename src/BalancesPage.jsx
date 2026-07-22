@@ -4,7 +4,6 @@ import {
   calculateCleanerBalances,
   DEFAULT_HOURLY_RATE,
   DEFAULT_LINEN_RATE,
-  getCurrentWeekStart,
 } from "./services/cleanerBalanceService";
 
 const SHEET_CSV_URL =
@@ -15,7 +14,7 @@ export default function BalancesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [startDate, setStartDate] = useState(() => formatInputDate(getCurrentWeekStart()));
+  const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(() => formatInputDate(new Date()));
 
   const load = useCallback(async () => {
@@ -65,12 +64,12 @@ export default function BalancesPage() {
         <p className="eyebrow">Balances</p>
         <h2>Soldes en temps réel</h2>
         <p className="muted">
-          Période sélectionnée : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h, linge × {DEFAULT_LINEN_RATE} €,
-          achats remboursables, moins les virements de la même période. Les virements notés « solde » remettent le compte à zéro.
+          Depuis le dernier virement noté « solde » de chaque personne : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h,
+          linge × {DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements suivants.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "18px 0" }}>
           <label>
-            Date début
+            Date début (facultative)
             <input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} />
           </label>
           <label>

@@ -27,6 +27,7 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   const { columns, rows } = parseHousekeepingCsv(csvText);
   const mapping = detectColumns(columns);
   const balances = new Map();
+  const lastSettlements = getLastSettlements(payments);
 
   for (const row of rows) {
     const workDate = parseDate(cell(row, mapping.date));
@@ -36,6 +37,8 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
 
     const cleanerName = normalizeCleanerName(cell(row, mapping.employee));
     if (!cleanerName) continue;
+    const settlementDate = lastSettlements.get(cleanerName);
+    if (settlementDate && workDate && workDate <= settlementDate) continue;
 
     const minutes = toNumber(firstNonEmpty(row, mapping.minuteColumns));
     const purchases = toNumber(cell(row, mapping.purchases));
@@ -59,6 +62,8 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
 
     const cleanerName = normalizeCleanerName(payment.cleaner_name);
     if (!cleanerName) continue;
+    const settlementDate = lastSettlements.get(cleanerName);
+    if (settlementDate && paymentDate && paymentDate <= settlementDate) continue;
     const current = getBalance(balances, cleanerName);
     current.total_paid += toNumber(payment.amount);
     current.payment_count += 1;
@@ -75,6 +80,21 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
       };
     })
     .sort((a, b) => b.balance - a.balance || a.cleaner_name.localeCompare(b.cleaner_name));
+}
+
+function getLastSettlements(payments) {
+  const settlements = new Map();
+
+  for (const payment of payments) {
+    if (!isSettlementPayment(payment)) continue;
+    const cleanerName = normalizeCleanerName(payment.cleaner_name);
+    const paymentDate = endOfDay(payment.payment_date);
+    if (!cleanerName || !paymentDate) continue;
+    const previous = settlements.get(cleanerName);
+    if (!previous || paymentDate > previous) settlements.set(cleanerName, paymentDate);
+  }
+
+  return settlements;
 }
 
 function getBalance(balances, cleanerName) {
