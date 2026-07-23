@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { calculateCleanerBalances } from "./services/cleanerBalanceService";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
@@ -67,17 +68,10 @@ const { data, error } = await supabase
     loadPayments();
   }, []);
 
-  const totalJennifer = payments
-    .filter(p => p.cleaner_name === "Jennifer")
-    .reduce((s, p) => s + Number(p.amount || 0), 0);
-
-  const totalRachida = payments
-    .filter(p => p.cleaner_name === "Rachida")
-    .reduce((s, p) => s + Number(p.amount || 0), 0);
-
-  const totalGaelle = payments
-    .filter(p => p.cleaner_name === "Gaelle")
-    .reduce((s, p) => s + Number(p.amount || 0), 0);
+  const currentPayments = calculateCleanerBalances("", payments);
+  const currentPaidByCleaner = Object.fromEntries(
+    currentPayments.map((row) => [row.cleaner_name, row.total_paid])
+  );
 
   return (
     <section className="page">
@@ -136,11 +130,13 @@ const { data, error } = await supabase
       </div>
 
       <div className="card">
-        <h3>Totaux versés</h3>
+        <h3>Virements pris en compte dans les balances</h3>
 
-        <p>Jennifer : {totalJennifer.toFixed(2)} €</p>
-        <p>Rachida : {totalRachida.toFixed(2)} €</p>
-        <p>Gaelle : {totalGaelle.toFixed(2)} €</p>
+        <p className="muted">Uniquement les virements enregistrés après le dernier virement noté « solde » de chaque personne.</p>
+
+        <p>Jennifer : {Number(currentPaidByCleaner.Jennifer || 0).toFixed(2)} €</p>
+        <p>Rachida : {Number(currentPaidByCleaner.Rachida || 0).toFixed(2)} €</p>
+        <p>Gaelle : {Number(currentPaidByCleaner.Gaelle || 0).toFixed(2)} €</p>
       </div>
 
       <div className="card">
