@@ -10,12 +10,12 @@ export async function getNodes() {
   return data ?? [];
 }
 
-export async function createNodeQuick() {
+export async function createNodeQuick({ title = "Nouvelle bulle", category = "Divers" } = {}) {
   const { data, error } = await supabase
     .from("brain_nodes")
     .insert({
-      title: "Nouvelle bulle",
-      category: "Divers",
+      title,
+      category,
       type: "idea",
       x: Math.random() * 800,
       y: Math.random() * 600,
