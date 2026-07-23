@@ -24,10 +24,11 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   const linenRate = toNumber(options.linenRate ?? DEFAULT_LINEN_RATE);
   const startDate = options.startDate ? startOfDay(options.startDate) : null;
   const endDate = options.endDate ? endOfDay(options.endDate) : null;
+  const fullHistory = options.mode === "all";
   const { columns, rows } = parseHousekeepingCsv(csvText);
   const mapping = detectColumns(columns);
   const balances = new Map();
-  const lastSettlements = getLastSettlements(payments);
+  const lastSettlements = fullHistory ? new Map() : getLastSettlements(payments);
 
   for (const row of rows) {
     const workDate = parseDate(cell(row, mapping.date));
@@ -55,7 +56,7 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
 
   for (const payment of payments) {
     const paymentDate = parseDate(payment.payment_date);
-    if (isSettlementPayment(payment)) continue;
+    if (!fullHistory && isSettlementPayment(payment)) continue;
     if ((startDate || endDate) && !paymentDate) continue;
     if (startDate && paymentDate < startDate) continue;
     if (endDate && paymentDate > endDate) continue;
