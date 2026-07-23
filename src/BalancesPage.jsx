@@ -86,7 +86,7 @@ export default function BalancesPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 25 }}>
         <Card title="Total dû" value={`${totals.due.toFixed(2)} €`} />
-        <Card title="Total payé" value={`${totals.paid.toFixed(2)} €`} color="#2e7d32" />
+        <Card title="Virements pris en compte" value={`${totals.paid.toFixed(2)} €`} color="#2e7d32" />
         <Card title="À payer" value={`${totals.balance.toFixed(2)} €`} color="#d32f2f" />
       </div>
 
@@ -98,9 +98,12 @@ export default function BalancesPage() {
               <tr>
                 <th align="left">Femme de ménage</th>
                 <th align="right">Heures</th>
+                <th align="right">Heures × {DEFAULT_HOURLY_RATE} €</th>
+                <th align="right">Linge</th>
+                <th align="right">Achats</th>
                 <th align="right">Total dû</th>
-                <th align="right">Total payé</th>
-                <th align="right">Solde</th>
+                <th align="right">Virements pris en compte</th>
+                <th align="right">Reste à payer</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +111,9 @@ export default function BalancesPage() {
                 <tr key={row.cleaner_name}>
                   <td><strong>{row.cleaner_name}</strong></td>
                   <td align="right">{row.total_hours.toFixed(2)} h</td>
+                  <td align="right">{row.labor_due.toFixed(2)} €</td>
+                  <td align="right">{row.linen_due.toFixed(2)} €</td>
+                  <td align="right">{row.purchases_due.toFixed(2)} €</td>
                   <td align="right">{row.total_due.toFixed(2)} €</td>
                   <td align="right" style={{ color: "#2e7d32" }}>{row.total_paid.toFixed(2)} €</td>
                   <td align="right" style={{ color: row.balance > 0 ? "#d32f2f" : "#2e7d32", fontWeight: 700, fontSize: 18 }}>
