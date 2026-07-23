@@ -14,6 +14,7 @@ export default function BalancesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [calculationMode, setCalculationMode] = useState("current");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(() => formatInputDate(new Date()));
 
@@ -48,9 +49,10 @@ export default function BalancesPage() {
   }, [load]);
 
   const rows = useMemo(() => calculateCleanerBalances(source.csvText, source.payments, {
+    mode: calculationMode,
     startDate: startDate || null,
     endDate: endDate || null,
-  }), [source, startDate, endDate]);
+  }), [source, calculationMode, startDate, endDate]);
 
   const totals = useMemo(() => ({
     due: rows.reduce((sum, row) => sum + row.total_due, 0),
@@ -64,10 +66,19 @@ export default function BalancesPage() {
         <p className="eyebrow">Balances</p>
         <h2>Soldes en temps réel</h2>
         <p className="muted">
-          Depuis le dernier virement noté « solde » de chaque personne : heures Google Sheets × {DEFAULT_HOURLY_RATE} €/h,
-          linge × {DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements suivants.
+          {calculationMode === "current"
+            ? `Solde actuel : depuis le dernier virement noté « solde » de chaque personne.`
+            : `Historique complet : toutes les lignes du Sheet et tous les virements sont comptés.`}
+          {` Heures Google Sheets × ${DEFAULT_HOURLY_RATE} €/h, linge × ${DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements.`}
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "18px 0" }}>
+          <label>
+            Période de calcul
+            <select value={calculationMode} onChange={(event) => setCalculationMode(event.target.value)}>
+              <option value="current">Solde actuel — depuis le dernier solde</option>
+              <option value="all">Historique complet — depuis le début</option>
+            </select>
+          </label>
           <label>
             Date début (facultative)
             <input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} />

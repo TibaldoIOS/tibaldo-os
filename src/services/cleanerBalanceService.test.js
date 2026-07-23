@@ -92,3 +92,22 @@ test("applies the same selected start and end dates to hours and payments", () =
   assert.equal(row.total_paid, 10);
   assert.equal(row.balance, 20);
 });
+
+test("full history includes work and settlement payments from before the latest settlement", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "18/07/2026,Jennifer,60",
+    "20/07/2026,Jennifer,120",
+    "22/07/2026,Jennifer,180",
+  ].join("\n");
+
+  const [row] = calculateCleanerBalances(csv, [
+    { cleaner_name: "Jennifer", amount: 45, payment_date: "2026-07-20", note: "Solde" },
+    { cleaner_name: "Jennifer", amount: 15, payment_date: "2026-07-22", note: "Acompte" },
+  ], { mode: "all" });
+
+  assert.equal(row.total_hours, 6);
+  assert.equal(row.total_due, 90);
+  assert.equal(row.total_paid, 60);
+  assert.equal(row.balance, 30);
+});
