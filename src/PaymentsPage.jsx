@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
-import { calculateCleanerBalances } from "./services/cleanerBalanceService";
+import { calculateCleanerBalances, isBalancePayment } from "./services/cleanerBalanceService";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
@@ -132,7 +132,7 @@ const { data, error } = await supabase
       <div className="card">
         <h3>Tous les virements enregistrés</h3>
 
-        <p className="muted">Chaque virement enregistré, y compris ceux notés « solde », est repris dans les balances.</p>
+        <p className="muted">Les avances, soldes et ajustements sont repris dans les balances. Les remboursements de frais restent visibles dans l’historique mais sont exclus du calcul.</p>
 
         <p>Jennifer : {Number(paidByCleaner.Jennifer || 0).toFixed(2)} €</p>
         <p>Rachida : {Number(paidByCleaner.Rachida || 0).toFixed(2)} €</p>
@@ -157,6 +157,7 @@ const { data, error } = await supabase
               {Number(p.amount).toFixed(2)} €
               {" "}
               ({p.note || "Sans note"})
+              {!isBalancePayment(p) && " — Hors balance : remboursement de frais"}
             </div>
 
             <button

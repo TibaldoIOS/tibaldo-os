@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateCleanerBalances } from "./cleanerBalanceService.js";
+import { calculateCleanerBalances, isBalancePayment } from "./cleanerBalanceService.js";
 
 test("reconciles all sheet hours and reimbursements with manual transfers", () => {
   const csv = [
@@ -112,7 +112,7 @@ test("full history includes work and settlement payments from before the latest 
   assert.equal(row.balance, 30);
 });
 
-test("counts every recorded transfer by default, including settlement notes", () => {
+test("counts remuneration transfers by default, including settlement notes", () => {
   const csv = "Quel est ton prénom ?,Temps passé sur la prestation (minutes)\n";
   const result = calculateCleanerBalances(csv, [
     { cleaner_name: "Jennifer", amount: 120, payment_date: "2026-08-01", note: "Acompte" },
@@ -124,4 +124,23 @@ test("counts every recorded transfer by default, including settlement notes", ()
   assert.equal(result.find((row) => row.cleaner_name === "Jennifer").total_paid, 120);
   assert.equal(result.find((row) => row.cleaner_name === "Rachida").total_paid, 302.25);
   assert.equal(result.find((row) => row.cleaner_name === "Gaelle").total_paid, 415);
+});
+
+test("excludes expense reimbursements from balances while keeping wage adjustments", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "02/08/2026,Gaelle,660",
+  ].join("\n");
+
+  const [row] = calculateCleanerBalances(csv, [
+    { cleaner_name: "Gaelle", amount: 27.16, payment_date: "2026-07-08", note: "Affiches Fives" },
+    { cleaner_name: "Gaelle", amount: 62.34, payment_date: "2026-07-21", note: "Ajustement" },
+  ]);
+
+  assert.equal(row.total_due, 165);
+  assert.equal(row.total_paid, 62.34);
+  assert.equal(row.balance, 102.66);
+  assert.equal(isBalancePayment({ note: "Affiches Fives" }), false);
+  assert.equal(isBalancePayment({ note: "Remboursement achat produits" }), false);
+  assert.equal(isBalancePayment({ note: "Ajustement" }), true);
 });

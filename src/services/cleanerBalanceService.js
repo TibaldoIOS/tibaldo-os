@@ -55,6 +55,7 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   }
 
   for (const payment of payments) {
+    if (!isBalancePayment(payment)) continue;
     const paymentDate = parseDate(payment.payment_date);
     if (!fullHistory && isSettlementPayment(payment)) continue;
     if ((startDate || endDate) && !paymentDate) continue;
@@ -87,6 +88,7 @@ function getLastSettlements(payments) {
   const settlements = new Map();
 
   for (const payment of payments) {
+    if (!isBalancePayment(payment)) continue;
     if (!isSettlementPayment(payment)) continue;
     const cleanerName = normalizeCleanerName(payment.cleaner_name);
     const paymentDate = endOfDay(payment.payment_date);
@@ -123,6 +125,11 @@ function detectColumns(columns) {
     purchases: exact(columns, "Montant Achats") || find(columns, ["montant achats", "montant achat"]),
     linen: exact(columns, "Combien de paires de draps as-tu nettoyées ?") || find(columns, ["combien de paires", "paires de draps", "jeux nettoy", "linge nettoy", "lots nettoy"]),
   };
+}
+
+export function isBalancePayment(payment) {
+  const note = normalize(payment?.note);
+  return !/(^|\s)(affiche|affiches|achat|achats|ticket|tickets|frais|remboursement|remboursements)(\s|$)/.test(note);
 }
 
 function isSettlementPayment(payment) {
