@@ -24,7 +24,7 @@ export function calculateCleanerBalances(csvText, payments = [], options = {}) {
   const linenRate = toNumber(options.linenRate ?? DEFAULT_LINEN_RATE);
   const startDate = options.startDate ? startOfDay(options.startDate) : null;
   const endDate = options.endDate ? endOfDay(options.endDate) : null;
-  const fullHistory = options.mode === "all";
+  const fullHistory = options.mode !== "current";
   const { columns, rows } = parseHousekeepingCsv(csvText);
   const mapping = detectColumns(columns);
   const balances = new Map();

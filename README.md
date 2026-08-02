@@ -12,9 +12,10 @@ Le calcul appliqué par personne est :
 
 L'écran permet de sélectionner librement une date de début et une date de fin.
 Les heures et les virements utilisent exactement la même période. Par défaut,
-le calcul repart automatiquement du dernier virement dont la note contient
-« solde » pour chaque personne. Une date de début facultative peut encore
-limiter davantage la période affichée.
+le calcul reprend l'historique complet et additionne tous les virements,
+y compris ceux dont la note contient « solde ». Le mode « Depuis le dernier
+solde » reste disponible manuellement. Une date de début facultative peut
+encore limiter la période affichée.
 
 Les noms Jennifer, Rachida et Gaëlle sont normalisés pour éviter qu'une variante
 d'orthographe crée un second solde. La logique testable se trouve dans

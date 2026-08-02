@@ -68,9 +68,9 @@ const { data, error } = await supabase
     loadPayments();
   }, []);
 
-  const currentPayments = calculateCleanerBalances("", payments);
-  const currentPaidByCleaner = Object.fromEntries(
-    currentPayments.map((row) => [row.cleaner_name, row.total_paid])
+  const allPayments = calculateCleanerBalances("", payments);
+  const paidByCleaner = Object.fromEntries(
+    allPayments.map((row) => [row.cleaner_name, row.total_paid])
   );
 
   return (
@@ -130,13 +130,13 @@ const { data, error } = await supabase
       </div>
 
       <div className="card">
-        <h3>Virements pris en compte dans les balances</h3>
+        <h3>Tous les virements enregistrés</h3>
 
-        <p className="muted">Uniquement les virements enregistrés après le dernier virement noté « solde » de chaque personne.</p>
+        <p className="muted">Chaque virement enregistré, y compris ceux notés « solde », est repris dans les balances.</p>
 
-        <p>Jennifer : {Number(currentPaidByCleaner.Jennifer || 0).toFixed(2)} €</p>
-        <p>Rachida : {Number(currentPaidByCleaner.Rachida || 0).toFixed(2)} €</p>
-        <p>Gaelle : {Number(currentPaidByCleaner.Gaelle || 0).toFixed(2)} €</p>
+        <p>Jennifer : {Number(paidByCleaner.Jennifer || 0).toFixed(2)} €</p>
+        <p>Rachida : {Number(paidByCleaner.Rachida || 0).toFixed(2)} €</p>
+        <p>Gaelle : {Number(paidByCleaner.Gaelle || 0).toFixed(2)} €</p>
       </div>
 
       <div className="card">

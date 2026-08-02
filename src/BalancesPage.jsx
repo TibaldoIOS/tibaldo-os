@@ -14,7 +14,7 @@ export default function BalancesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [calculationMode, setCalculationMode] = useState("current");
+  const [calculationMode, setCalculationMode] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(() => formatInputDate(new Date()));
 
@@ -75,8 +75,8 @@ export default function BalancesPage() {
           <label>
             Période de calcul
             <select value={calculationMode} onChange={(event) => setCalculationMode(event.target.value)}>
-              <option value="current">Solde actuel — depuis le dernier solde</option>
               <option value="all">Historique complet — depuis le début</option>
+              <option value="current">Depuis le dernier solde</option>
             </select>
           </label>
           <label>

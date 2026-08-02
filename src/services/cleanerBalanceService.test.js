@@ -47,7 +47,7 @@ test("starts each cleaner balance after their latest settlement transfer", () =>
   const [row] = calculateCleanerBalances(csv, [
     { cleaner_name: "Gaelle", amount: 500, payment_date: "2026-07-20", note: "Virement en solde" },
     { cleaner_name: "Gaelle", amount: 10, payment_date: "2026-07-21", note: "Acompte" },
-  ]);
+  ], { mode: "current" });
 
   assert.equal(row.total_hours, 1);
   assert.equal(row.total_due, 15);
@@ -67,7 +67,7 @@ test("uses a different latest settlement date for each cleaner", () => {
   const result = calculateCleanerBalances(csv, [
     { cleaner_name: "Jennifer", amount: 30, payment_date: "2026-07-18", note: "Solde" },
     { cleaner_name: "Rachida", amount: 15, payment_date: "2026-07-20", note: "Compte soldé" },
-  ]);
+  ], { mode: "current" });
 
   assert.equal(result.find((row) => row.cleaner_name === "Jennifer").balance, 30);
   assert.equal(result.find((row) => row.cleaner_name === "Rachida").balance, 45);
@@ -110,4 +110,18 @@ test("full history includes work and settlement payments from before the latest 
   assert.equal(row.total_due, 90);
   assert.equal(row.total_paid, 60);
   assert.equal(row.balance, 30);
+});
+
+test("counts every recorded transfer by default, including settlement notes", () => {
+  const csv = "Quel est ton prénom ?,Temps passé sur la prestation (minutes)\n";
+  const result = calculateCleanerBalances(csv, [
+    { cleaner_name: "Jennifer", amount: 120, payment_date: "2026-08-01", note: "Acompte" },
+    { cleaner_name: "Rachida", amount: 302.25, payment_date: "2026-07-20", note: "Solde" },
+    { cleaner_name: "Gaelle", amount: 300, payment_date: "2026-07-25", note: "Acompte" },
+    { cleaner_name: "Gaelle", amount: 115, payment_date: "2026-07-15", note: "Solde" },
+  ]);
+
+  assert.equal(result.find((row) => row.cleaner_name === "Jennifer").total_paid, 120);
+  assert.equal(result.find((row) => row.cleaner_name === "Rachida").total_paid, 302.25);
+  assert.equal(result.find((row) => row.cleaner_name === "Gaelle").total_paid, 415);
 });
