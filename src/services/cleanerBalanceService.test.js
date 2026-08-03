@@ -144,3 +144,19 @@ test("excludes expense reimbursements from balances while keeping wage adjustmen
   assert.equal(isBalancePayment({ note: "Remboursement achat produits" }), false);
   assert.equal(isBalancePayment({ note: "Ajustement" }), true);
 });
+
+test("applies a negative historical adjustment to reconcile a settled balance", () => {
+  const csv = [
+    "Horodateur,Quel est ton prénom ?,Temps passé sur la prestation (minutes)",
+    "02/08/2026,Jennifer,60",
+  ].join("\n");
+
+  const [row] = calculateCleanerBalances(csv, [
+    { cleaner_name: "Jennifer", amount: 106.5, payment_date: "2026-08-02", note: "Solde" },
+    { cleaner_name: "Jennifer", amount: -91.5, payment_date: "2026-08-02", note: "Ajustement historique" },
+  ], { mode: "all" });
+
+  assert.equal(row.total_due, 15);
+  assert.equal(row.total_paid, 15);
+  assert.equal(row.balance, 0);
+});

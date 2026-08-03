@@ -14,8 +14,6 @@ export default function BalancesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [calculationMode, setCalculationMode] = useState("current");
-  const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(() => formatInputDate(new Date()));
 
   const load = useCallback(async () => {
@@ -49,10 +47,9 @@ export default function BalancesPage() {
   }, [load]);
 
   const rows = useMemo(() => calculateCleanerBalances(source.csvText, source.payments, {
-    mode: calculationMode,
-    startDate: startDate || null,
+    mode: "all",
     endDate: endDate || null,
-  }), [source, calculationMode, startDate, endDate]);
+  }), [source, endDate]);
 
   const totals = useMemo(() => ({
     due: rows.reduce((sum, row) => sum + row.total_due, 0),
@@ -66,26 +63,12 @@ export default function BalancesPage() {
         <p className="eyebrow">Balances</p>
         <h2>Soldes en temps réel</h2>
         <p className="muted">
-          {calculationMode === "current"
-            ? `Solde actuel : depuis le dernier virement noté « solde » de chaque personne.`
-            : `Historique complet : toutes les lignes du Sheet et tous les virements sont comptés.`}
-          {` Heures Google Sheets × ${DEFAULT_HOURLY_RATE} €/h, linge × ${DEFAULT_LINEN_RATE} €, achats remboursables, moins les virements.`}
+          {`Historique complet depuis le début : toutes les lignes du Sheet, tous les virements et les ajustements sont comptés. Heures Google Sheets × ${DEFAULT_HOURLY_RATE} €/h, linge × ${DEFAULT_LINEN_RATE} €, achats remboursables, moins les règlements.`}
         </p>
         <div className="balancesFilters">
           <label>
-            Période de calcul
-            <select value={calculationMode} onChange={(event) => setCalculationMode(event.target.value)}>
-              <option value="current">Depuis le dernier solde</option>
-              <option value="all">Historique complet — depuis le début</option>
-            </select>
-          </label>
-          <label>
-            Date début (facultative)
-            <input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} />
-          </label>
-          <label>
             Date fin
-            <input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
           </label>
         </div>
         <button className="primary" onClick={load} disabled={loading}>
@@ -97,7 +80,7 @@ export default function BalancesPage() {
 
       <div className="balancesSummaryGrid">
         <Card title="Total dû" value={`${totals.due.toFixed(2)} €`} />
-        <Card title="Virements pris en compte" value={`${totals.paid.toFixed(2)} €`} color="#2e7d32" />
+        <Card title="Virements et ajustements" value={`${totals.paid.toFixed(2)} €`} color="#2e7d32" />
         <Card title="À payer" value={`${totals.balance.toFixed(2)} €`} color="#d32f2f" />
       </div>
 
@@ -115,7 +98,7 @@ export default function BalancesPage() {
                     <th align="right">Linge</th>
                     <th align="right">Achats</th>
                     <th align="right">Total dû</th>
-                    <th align="right">Virements pris en compte</th>
+                    <th align="right">Virements et ajustements</th>
                     <th align="right">Reste à payer</th>
                   </tr>
                 </thead>
