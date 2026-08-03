@@ -34,3 +34,8 @@ src/App-old-monolithe.jsx
 *.njsproj
 *.sln
 *.sw?
+
+# Xcode local state
+ios/**/xcuserdata/
+ios/**/DerivedData/
+*.xcuserstate
