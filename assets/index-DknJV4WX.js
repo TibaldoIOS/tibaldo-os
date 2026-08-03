@@ -926,6 +926,16 @@ button { border: 0; cursor: pointer; }
   padding: 14px;
 }
 
+@media (display-mode: standalone) {
+  .stickyTop {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .content {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}
+
 .page {
   display: grid;
   gap: 14px;
@@ -1478,4 +1488,4 @@ textarea {
     grid-template-columns: 1fr 1fr;
   }
 }
-`;(0,v.createRoot)(document.getElementById(`root`)).render((0,Z.jsx)(_.StrictMode,{children:(0,Z.jsx)(CC,{})}));
+`;(0,v.createRoot)(document.getElementById(`root`)).render((0,Z.jsx)(_.StrictMode,{children:(0,Z.jsx)(CC,{})})),`serviceWorker`in navigator&&window.addEventListener(`load`,()=>{navigator.serviceWorker.register(`/sw.js`).catch(()=>{})});
