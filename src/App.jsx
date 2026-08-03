@@ -2710,6 +2710,16 @@ button { border: 0; cursor: pointer; }
   padding: 14px;
 }
 
+@media (display-mode: standalone) {
+  .stickyTop {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .content {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}
+
 .page {
   display: grid;
   gap: 14px;
