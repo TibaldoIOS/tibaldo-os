@@ -94,7 +94,7 @@ export default function DashboardPage({
         <p className="eyebrow">Ménage</p>
         <h3>Tableau de bord prestations</h3>
         <p className="muted">
-          Analyse les heures, achats, linge Jennifer,
+          Analyse les heures, achats, linge,
           admin/service client et coûts estimés.
         </p>
         <button

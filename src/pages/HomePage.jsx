@@ -55,7 +55,7 @@ export default function HomePage({ weights, tasks, ideas, onGoPlan, onGoIdeas, o
       <div className="card">
         <p className="eyebrow">Ménage</p>
         <h3>Tableau de bord prestations</h3>
-        <p className="muted">Analyse les heures, achats, linge Jennifer, admin/service client et coûts estimés.</p>
+        <p className="muted">Analyse les heures, achats, linge, admin/service client et coûts estimés.</p>
         <button className="secondaryButton" onClick={onGoPlus}>Ouvrir Plus → Ménage</button>
       </div>
 

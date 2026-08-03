@@ -483,7 +483,7 @@ function HomePage({ weights, tasks, ideas, onGoPlan, onGoIdeas, onGoSearch, onGo
       <div className="card">
         <p className="eyebrow">Ménage</p>
         <h3>Tableau de bord prestations</h3>
-        <p className="muted">Analyse les heures, achats, linge Jennifer, admin/service client et coûts estimés.</p>
+        <p className="muted">Analyse les heures, achats, linge, admin/service client et coûts estimés.</p>
         <button className="secondaryButton" onClick={onGoPlus}>Ouvrir Plus → Ménage</button>
       </div>
 
@@ -1667,8 +1667,6 @@ function HousekeepingDashboard() {
     const anomaly = detectAnomaly(`${remarks} ${linenPresence} ${surfaces}`);
     const dayLabel = parsedDate ? parsedDate.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" }) : "Sans date";
     const isAdmin = isAdminService(type, remarks, products);
-    const isLinenJennifer = employee === "Jennifer" && linenCleaned > 0;
-
     return {
       id: index,
       raw: row,
@@ -1691,7 +1689,6 @@ function HousekeepingDashboard() {
       roomCount,
       anomaly,
       isAdmin,
-      isLinenJennifer,
       searchable: Object.values(row).join(" ").toLowerCase(),
     };
   }), [rows, mapping]);
@@ -1829,7 +1826,7 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
             </label>
 
             <label>
-              Prix jeu linge Jennifer
+              Prix par jeu de linge
               <input value={linenRate} onChange={(e) => setLinenRate(e.target.value)} />
             </label>
 
@@ -1850,7 +1847,7 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
             <KpiCard icon="🏠" label="Logements" value={kpis.properties} />
             <KpiCard icon="👥" label="Prestataires" value={kpis.employees} />
             <KpiCard icon="🛏️" label="Chambres préparées" value={kpis.rooms} />
-            <KpiCard icon="🧺" label="Jeux linge Jennifer" value={formatNumber(kpis.linenCleaned)} />
+            <KpiCard icon="🧺" label="Jeux linge" value={formatNumber(kpis.linenCleaned)} />
             <KpiCard icon="💶" label="Paie linge" value={formatCurrency(kpis.linenPay)} />
             <KpiCard icon="🧴" label="Achats" value={formatCurrency(kpis.purchases)} />
             <KpiCard icon="📌" label="Lignes achats" value={kpis.rowsWithPurchases} />
@@ -1977,7 +1974,7 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
               Logement : <strong>{mapping.property || "non détectée"}</strong><br />
               Chambres : <strong>{mapping.rooms || "non détectée"}</strong><br />
               Linge OK : <strong>{mapping.linenPresence || "non détectée"}</strong><br />
-              Jeux linge Jennifer : <strong>{mapping.linenCleaned || "non détectée"}</strong><br />
+              Jeux linge : <strong>{mapping.linenCleaned || "non détectée"}</strong><br />
               Achats : <strong>{mapping.purchases || "non détectée"}</strong><br />
               Produits : <strong>{mapping.products || "non détectée"}</strong><br />
               Tickets : <strong>{mapping.receipt || "non détectée"}</strong><br />
@@ -2278,7 +2275,7 @@ function inferHousekeepingServiceType(row, mapping, employee, property, roomsTex
   }
 
   if (
-    employee === "Jennifer" &&
+    employee !== "Non renseigné" &&
     (
       allText.includes("linge") ||
       allText.includes("drap") ||
