@@ -1,0 +1,142 @@
+:root {
+  --private-ink: #163f33;
+  --private-forest: #0d4c3a;
+  --private-sage: #dce8d8;
+  --private-lime: #dce989;
+  --private-paper: #f4f1e8;
+  --private-white: #fffefa;
+  --private-line: #d5d8cc;
+  --private-muted: #64716b;
+  --private-alert: #a34836;
+}
+
+* { box-sizing: border-box; }
+body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { margin: 0; min-width: 320px; background: var(--private-paper); color: var(--private-ink); }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+
+.skipLink { position: fixed; top: -80px; left: 1rem; z-index: 100; padding: .7rem 1rem; background: white; color: var(--private-forest); }
+.skipLink:focus { top: 1rem; }
+.privateShell { min-height: 100vh; background: var(--private-paper); color: var(--private-ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.privateTopbar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2rem; min-height: 72px; padding: .7rem clamp(1rem, 4vw, 4rem); color: white; background: rgba(13, 76, 58, .98); border-bottom: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(16px); }
+.brandButton, .privateTopbar nav button, .topbarActions button { border: 0; color: inherit; background: transparent; }
+.brandButton { display: flex; align-items: center; gap: .65rem; font-size: 1.15rem; }
+.brandButton span { display: grid; place-items: center; width: 38px; aspect-ratio: 1; border-radius: 50%; color: var(--private-forest); background: var(--private-lime); font-family: Georgia, serif; font-size: 1.35rem; }
+.privateTopbar nav { display: flex; justify-content: center; gap: .3rem; }
+.privateTopbar nav button { padding: .65rem .9rem; border-radius: 999px; color: #dbe8e1; }
+.privateTopbar nav button.active { color: var(--private-forest); background: var(--private-white); }
+.topbarActions { display: flex; align-items: center; gap: .7rem; }
+.roleBadge { padding: .35rem .65rem; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; font-size: .76rem; text-transform: uppercase; letter-spacing: .09em; }
+.topbarActions button { text-decoration: underline; text-underline-offset: 4px; }
+
+.privatePage { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(2rem, 6vw, 5.5rem) 0 5rem; }
+.openingHero, .employeeHero { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; }
+.eyebrow { margin: 0 0 .7rem; color: #5c786f; font-size: .78rem; font-weight: 800; letter-spacing: .18em; }
+.openingHero h1, .employeeHero h1, .privateLogin h1 { max-width: 800px; margin: 0; color: var(--private-forest); font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.5rem, 7vw, 5.6rem); font-weight: 500; line-height: .95; letter-spacing: -.045em; }
+.openingHero p:not(.eyebrow), .employeeHero p:not(.eyebrow), .privateLogin p { max-width: 650px; color: var(--private-muted); font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.55; }
+.countdown { flex: 0 0 220px; padding: 1.3rem; color: white; background: var(--private-forest); border-radius: 18px 18px 4px 18px; }
+.countdown strong { display: block; font-family: Georgia, serif; font-size: 3.8rem; line-height: 1; }
+.countdown span { display: block; margin-top: .5rem; color: #d8e4dd; }
+
+.metricGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--private-line); border-radius: 18px; overflow: hidden; background: var(--private-white); }
+.metricGrid article { min-height: 118px; padding: 1.2rem; border-right: 1px solid var(--private-line); }
+.metricGrid article:last-child { border-right: 0; }
+.metricGrid strong { display: block; font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 3.4rem); font-weight: 500; }
+.metricGrid span { color: var(--private-muted); }
+.metricGrid .metricAlert { color: var(--private-alert); background: #f7e9e3; }
+.progressTrack { height: 8px; margin: 1rem 0 2rem; overflow: hidden; background: #dfe1d8; border-radius: 999px; }
+.progressTrack span { display: block; height: 100%; background: var(--private-forest); border-radius: inherit; transition: width .25s ease; }
+.segmented { display: flex; gap: .45rem; margin: 0 0 1.5rem; overflow-x: auto; scrollbar-width: none; }
+.segmented button { flex: 0 0 auto; min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--private-line); border-radius: 999px; color: var(--private-ink); background: transparent; }
+.segmented button.active { color: white; background: var(--private-forest); border-color: var(--private-forest); }
+
+.quickTaskForm { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.4rem; padding: clamp(1rem, 3vw, 1.8rem); background: var(--private-sage); border-radius: 20px; }
+.formHeading { grid-column: 1 / -1; display: flex; align-items: start; justify-content: space-between; }
+.formHeading h2 { margin: 0; font-family: Georgia, serif; font-size: 2rem; font-weight: 500; }
+.quickTaskForm label, .durationSubmit label, .privateLogin label { display: grid; gap: .4rem; color: #37594f; font-size: .84rem; font-weight: 700; }
+.quickTaskForm input, .quickTaskForm select, .quickTaskForm textarea, .durationSubmit input, .privateLogin input { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid #bbc9bb; border-radius: 10px; color: var(--private-ink); background: rgba(255,255,255,.88); }
+.wideField { grid-column: 1 / -1; }
+.primaryAction { min-height: 44px; padding: .75rem 1rem; border: 0; border-radius: 10px; color: white; background: var(--private-forest); font-weight: 750; }
+.textButton { border: 0; color: var(--private-forest); background: transparent; text-decoration: underline; }
+.inlineMessage { padding: .8rem 1rem; border-left: 4px solid var(--private-forest); background: #e7eee5; }
+
+.taskList, .employeeCards { display: grid; gap: .8rem; }
+.openingTask { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; padding: 1.2rem; border: 1px solid var(--private-line); border-left-width: 5px; background: var(--private-white); border-radius: 4px 16px 16px 4px; }
+.openingTask.priority-P0_CRITICAL { border-left-color: var(--private-alert); }
+.openingTask.priority-P1_IMPORTANT { border-left-color: var(--private-forest); }
+.openingTask.priority-P2_CAN_WAIT { border-left-color: #9da59b; }
+.taskCheck { width: 32px; height: 32px; border: 1.5px solid #8aa095; border-radius: 50%; color: white; background: transparent; }
+.taskCheck.checked { background: var(--private-forest); }
+.taskBody h3 { margin: .35rem 0; font-size: 1.1rem; }
+.taskBody p { margin: .35rem 0; color: var(--private-muted); line-height: 1.5; }
+.taskMeta { display: flex; flex-wrap: wrap; gap: .45rem; }
+.taskMeta span, .priorityPill, .statusPill { padding: .28rem .5rem; border-radius: 999px; color: #4a625a; background: #ecede7; font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
+.priorityPill { align-self: start; }
+.taskNote { padding-left: .7rem; border-left: 2px solid #b8c7b8; }
+.taskActions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+.taskActions button { min-height: 38px; padding: .5rem .7rem; border: 1px solid #bdc6bd; border-radius: 8px; color: var(--private-forest); background: transparent; }
+.openingTime { display: block; margin-top: 2rem; color: var(--private-muted); text-align: center; }
+.loadingCard, .emptyCard { padding: 2rem; border: 1px dashed #a9b4aa; border-radius: 16px; text-align: center; }
+.emptyCard h2 { margin-top: 0; font-family: Georgia, serif; font-size: 1.8rem; font-weight: 500; }
+
+.employeeCard { display: grid; grid-template-columns: 130px minmax(0, 1fr) 240px; gap: 1.3rem; align-items: start; padding: 1.2rem; border: 1px solid var(--private-line); border-radius: 16px; background: var(--private-white); }
+.employeeCardDate strong, .employeeCardDate span { display: block; }
+.employeeCardDate strong { font-size: 1.1rem; text-transform: capitalize; }
+.employeeCardDate span, .employeeCardBody p { color: var(--private-muted); }
+.employeeCardBody h2 { margin: .45rem 0; font-family: Georgia, serif; font-size: 1.6rem; font-weight: 500; }
+.durationSubmit { display: grid; gap: .5rem; }
+.historyList { margin-top: 1rem; border: 1px solid var(--private-line); border-radius: 16px; overflow: hidden; background: var(--private-white); }
+.historyList > div, .teamRow { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--private-line); }
+.historyList > div:last-child, .teamRow:last-child { border-bottom: 0; }
+.ownerTeamGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+.ownerTeamGrid > article { padding: 1.2rem; border: 1px solid var(--private-line); border-radius: 16px; background: var(--private-white); }
+.ownerTeamGrid h2 { margin-top: 0; font-family: Georgia, serif; font-weight: 500; }
+.teamRow span, .teamRow small { display: block; }
+.teamRow small { margin-top: .25rem; color: var(--private-muted); }
+
+.privateLogin, .privateSplash { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: radial-gradient(circle at 80% 10%, #d8e7ce 0, transparent 32%), var(--private-paper); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.privateLogin section { width: min(100%, 540px); padding: clamp(1.4rem, 5vw, 3rem); border: 1px solid var(--private-line); border-radius: 24px; background: rgba(255,254,250,.94); box-shadow: 0 30px 80px rgba(20,55,45,.11); }
+.privateLogin h1 { font-size: clamp(2.7rem, 10vw, 4.5rem); }
+.privateLogin form { display: grid; gap: 1rem; margin-top: 1.5rem; }
+
+@media (max-width: 820px) {
+  .privateTopbar { grid-template-columns: auto 1fr; gap: .7rem; }
+  .privateTopbar nav { grid-column: 1 / -1; grid-row: 2; justify-content: start; overflow-x: auto; }
+  .topbarActions { justify-self: end; }
+  .openingHero, .employeeHero { align-items: stretch; flex-direction: column; }
+  .countdown { flex-basis: auto; }
+  .metricGrid { grid-template-columns: 1fr 1fr; }
+  .metricGrid article:nth-child(2) { border-right: 0; }
+  .metricGrid article:nth-child(-n+2) { border-bottom: 1px solid var(--private-line); }
+  .quickTaskForm { grid-template-columns: 1fr 1fr; }
+  .employeeCard { grid-template-columns: 105px minmax(0, 1fr); }
+  .durationSubmit { grid-column: 1 / -1; }
+  .ownerTeamGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .privateTopbar { min-height: 64px; padding: .65rem .85rem; }
+  .brandButton strong, .roleBadge { display: none; }
+  .privateTopbar nav button { font-size: .82rem; }
+  .privatePage { width: min(100% - 1rem, 1180px); padding-top: 2rem; }
+  .openingHero h1, .employeeHero h1 { font-size: clamp(2.7rem, 15vw, 4rem); }
+  .countdown { display: flex; align-items: center; justify-content: space-between; }
+  .countdown strong { font-size: 2.7rem; }
+  .metricGrid article { min-height: 96px; padding: .85rem; }
+  .metricGrid strong { font-size: 2rem; }
+  .metricGrid span { font-size: .78rem; }
+  .quickTaskForm { grid-template-columns: 1fr; }
+  .quickTaskForm > *, .wideField { grid-column: 1; }
+  .openingTask { grid-template-columns: auto minmax(0, 1fr); padding: .9rem; }
+  .priorityPill { grid-column: 2; grid-row: 1; justify-self: end; }
+  .taskBody { grid-column: 2; }
+  .taskActions { display: grid; grid-template-columns: 1fr 1fr; }
+  .taskActions button { min-height: 44px; }
+  .employeeCard { grid-template-columns: 1fr; }
+  .durationSubmit { grid-column: 1; }
+  .historyList > div, .teamRow { align-items: start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; }
+}

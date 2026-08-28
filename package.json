@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/services/*.test.js",
+    "test": "node --test src/services/*.test.js src/privateModules/*.test.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "deployzip": "npm run build && rm -f tibaldoos-latest.zip && cd dist && zip -r ../tibaldoos-latest.zip . && cd .."
