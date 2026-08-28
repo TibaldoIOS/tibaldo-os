@@ -119,6 +119,11 @@ insert into public.tibaldo_app_memberships(user_id, role)
 select id, 'OWNER'
 from auth.users
 where lower(email) = lower('contact@tibaldo.fr')
+  and not exists (
+    select 1
+    from public.tibaldo_app_memberships existing_owner
+    where existing_owner.role = 'OWNER'
+  )
 on conflict (user_id) do update set role = excluded.role, updated_at = now();
 
 -- Retire the isolated V1 duplicate employee ledgers when upgrading that schema.
@@ -397,24 +402,6 @@ begin
   end loop;
 end;
 $$;
-
--- Remove historical bucket-wide anonymous access while preserving the bounded
--- anonymous prestataire upload policy already used by the existing workflow.
-drop policy if exists tibaldo_documents_select on storage.objects;
-drop policy if exists tibaldo_documents_insert on storage.objects;
-drop policy if exists tibaldo_documents_update on storage.objects;
-drop policy if exists tibaldo_documents_delete on storage.objects;
-drop policy if exists tibaldo_app_owner_membership_gate on storage.objects;
-create policy tibaldo_app_owner_membership_gate
-  on storage.objects as restrictive for all to authenticated
-  using (
-    bucket_id <> 'tibaldo-documents'
-    or (select private.tibaldo_app_has_role('OWNER'))
-  )
-  with check (
-    bucket_id <> 'tibaldo-documents'
-    or (select private.tibaldo_app_has_role('OWNER'))
-  );
 
 comment on table public.tibaldo_app_opening_tasks is
   'Owner-only opening control center tasks for 26 September 2026.';

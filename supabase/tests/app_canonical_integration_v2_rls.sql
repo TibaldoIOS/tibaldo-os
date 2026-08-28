@@ -179,11 +179,13 @@ end;
 $$;
 reset role;
 
-select 'EMPLOYEE_CROSS_USER_ISOLATION=PASS_6_OF_6';
-select 'EMPLOYEE_OWNER_ROUTE_DATA_ACCESS=DENIED';
-select 'OWNER_OPENING_CRUD=PASS';
-select 'MISSING_JWT_SUBJECT=FAIL_CLOSED';
-select 'REAL_EXPIRED_JWT_REST_TEST=REQUIRED_ON_DEVELOPMENT_BRANCH';
-select 'ANON_ACCESS=DENIED';
-select 'DUPLICATE_EMPLOYEE_LEDGER=NO';
+select jsonb_build_object(
+  'employee_cross_user_isolation', 'PASS_6_OF_6',
+  'employee_owner_route_data_access', 'DENIED',
+  'owner_opening_crud', 'PASS',
+  'missing_jwt_subject', 'FAIL_CLOSED',
+  'real_expired_jwt_rest_test', 'REQUIRED_ON_DEVELOPMENT_TARGET',
+  'anonymous_access', 'DENIED',
+  'duplicate_employee_ledger', 'NO'
+) as app_canonical_integration_v2_matrix;
 rollback;
