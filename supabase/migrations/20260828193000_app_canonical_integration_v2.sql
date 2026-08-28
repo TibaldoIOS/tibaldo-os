@@ -407,8 +407,14 @@ drop policy if exists tibaldo_documents_delete on storage.objects;
 drop policy if exists tibaldo_app_owner_membership_gate on storage.objects;
 create policy tibaldo_app_owner_membership_gate
   on storage.objects as restrictive for all to authenticated
-  using ((select private.tibaldo_app_has_role('OWNER')))
-  with check ((select private.tibaldo_app_has_role('OWNER')));
+  using (
+    bucket_id <> 'tibaldo-documents'
+    or (select private.tibaldo_app_has_role('OWNER'))
+  )
+  with check (
+    bucket_id <> 'tibaldo-documents'
+    or (select private.tibaldo_app_has_role('OWNER'))
+  );
 
 comment on table public.tibaldo_app_opening_tasks is
   'Owner-only opening control center tasks for 26 September 2026.';
