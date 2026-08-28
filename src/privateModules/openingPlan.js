@@ -32,7 +32,7 @@ const task = (seedKey, title, dueDate, weekLabel, category, priority = "P1_IMPOR
 export const OPENING_PLAN = [
   task("foundation-01", "Prioriser les derniers rempotages", "2026-08-31", "31 AOÛT–06 SEPT.", "PLANTES", "P0_CRITICAL", "NORMAL", "État connu : environ vingt rempotages restants. Ajuster le volume après comptage réel."),
   task("foundation-02", "Lister le matériel de stockage sec", "2026-08-31", "31 AOÛT–06 SEPT.", "STOCK", "P1_IMPORTANT", "LIGHT"),
-  task("foundation-03", "Bloquer un créneau léger d’administration", "2026-09-01", "31 AOÛT–06 SEPT.", "ADMINISTRATIF", "P2_CAN_WAIT", "LIGHT"),
+  task("foundation-03", "Valider les prototypes Jungle V19 avant propagation", "2026-09-01", "31 AOÛT–06 SEPT.", "INFORMATIQUE", "P1_IMPORTANT", "LIGHT", "Le système V19 reste au gate visuel Owner ; ne pas considérer la propagation globale comme terminée."),
   task("foundation-04", "Trier les plantes par destination boutique", "2026-09-01", "31 AOÛT–06 SEPT.", "PLANTES", "P0_CRITICAL", "HEAVY"),
   task("foundation-05", "Choisir et commander l’imprimante à étiquettes adhésives", "2026-09-02", "31 AOÛT–06 SEPT.", "FOURNISSEURS", "P0_CRITICAL", "NORMAL"),
   task("foundation-06", "Préparer la structure des catégories du catalogue réel", "2026-09-02", "31 AOÛT–06 SEPT.", "INFORMATIQUE", "P0_CRITICAL", "NORMAL"),

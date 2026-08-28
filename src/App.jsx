@@ -16,6 +16,10 @@ import AirbnbFiscalityPage from "./pages/AirbnbFiscalityPage";
 import BalancesPage from "./BalancesPage";
 import RevenuePage from "./RevenuePage";
 import PaymentsPage from "./PaymentsPage";
+import OpeningControlCenter from "./privateModules/OpeningControlCenter";
+import { EmployeePortal, OwnerTeamOverview } from "./privateModules/EmployeePortal";
+import { workspaceForRole } from "./privateModules/employeeProjection";
+import "./privateModules/privateModules.css";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -32,6 +36,8 @@ const animals = [
 
 const tabs = [
   { id: "home", label: "Accueil", icon: "🏡" },
+  { id: "opening", label: "Ouverture", icon: "🌿" },
+  { id: "team", label: "Équipe", icon: "👥" },
   { id: "search", label: "Recherche", icon: "🔎" },
   { id: "plan", label: "Plan", icon: "🧭" },
   { id: "ideas", label: "Idées", icon: "🧠" },
@@ -47,6 +53,11 @@ const tabs = [
   { id: "bankimport", label: "Import Banque", icon: "📄" },
   { id: "fiscalite", label: "Fiscalité", icon: "🏠" },
 ];
+
+function initialTabFromLocation() {
+  const route = window.location.hash.replace(/^#\/?/, "");
+  return tabs.some((tab) => tab.id === route) ? route : "home";
+}
 
 const seedTasks = [
   { title: "Vétérinaire Uzy : vermifuge / antiparasitaire / traitement mère + chatons", category: "Chatterie", priority: "haute", date: "2026-06-08", source: "seed" },
@@ -66,10 +77,12 @@ const seedTasks = [
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [membership, setMembership] = useState(null);
+  const [accessReady, setAccessReady] = useState(false);
   const [authEmail, setAuthEmail] = useState("contact@tibaldo.fr");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState(initialTabFromLocation);
   const [selectedAnimalKey, setSelectedAnimalKey] = useState("uzy");
   const [weights, setWeights] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -77,38 +90,68 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  async function hydrateSession(nextSession) {
+    setSession(nextSession);
+    setMembership(null);
+    if (!nextSession) {
+      setAccessReady(true);
+      return;
+    }
+
+    setAccessReady(false);
+    const result = await supabase
+      .from("tibaldo_app_memberships")
+      .select("user_id, role")
+      .eq("user_id", nextSession.user.id)
+      .maybeSingle();
+
+    if (!result.error && result.data) {
+      setMembership(result.data);
+      if (result.data.role === "OWNER") await loadAll();
+    }
+    setAccessReady(true);
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session) loadAll();
-    });
+    supabase.auth.getSession().then(({ data }) => hydrateSession(data.session));
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession) loadAll();
+      // Defer Supabase calls until the auth callback releases its internal lock.
+      window.setTimeout(() => {
+        void hydrateSession(nextSession);
+      }, 0);
     });
 
     return () => listener.subscription.unsubscribe();
+    // The auth listener owns hydration for the lifetime of the application.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(initialTabFromLocation());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function navigateToTab(tabId) {
+    setActiveTab(tabId);
+    if (tabId === "opening" || tabId === "team") window.location.hash = tabId;
+    else if (window.location.hash === "#opening" || window.location.hash === "#team") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }
 
   async function signIn() {
     setAuthMessage("Connexion...");
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
     if (error) return setAuthMessage("Erreur connexion : " + error.message);
     setAuthMessage("Connecté ✅");
-    await loadAll();
-  }
-
-  async function signUp() {
-    setAuthMessage("Création du compte...");
-    const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-    if (error) return setAuthMessage("Erreur création compte : " + error.message);
-    setAuthMessage("Compte créé. Vérifie tes mails si Supabase demande confirmation.");
   }
 
   async function signOut() {
     await supabase.auth.signOut();
     setSession(null);
+    setMembership(null);
     setWeights([]);
     setTasks([]);
     setIdeas([]);
@@ -293,6 +336,10 @@ export default function App() {
   setActiveTab("plan");
   }
 
+  if (!accessReady) {
+    return <div className="privateSplash privateModuleScope">Ouverture de Tibaldo…</div>;
+  }
+
   if (!session) {
     return (
       <div className="app loginApp">
@@ -318,7 +365,6 @@ export default function App() {
 
           <div className="buttonRow">
             <button className="primary" onClick={signIn}>Se connecter</button>
-            <button className="secondaryButton" onClick={signUp}>Créer compte</button>
           </div>
 
           {authMessage && <p className="message">{authMessage}</p>}
@@ -328,6 +374,49 @@ export default function App() {
       </div>
     );
   }
+
+  if (!membership) {
+    return (
+      <main className="privateLogin privateModuleScope">
+        <section>
+          <p className="privateEyebrow">ACCÈS REFUSÉ</p>
+          <h1>Ce compte n’est pas autorisé.</h1>
+          <p>L’accès est vérifié côté serveur. La création libre de compte est désactivée.</p>
+          <button className="privatePrimaryAction" onClick={signOut}>Se déconnecter</button>
+        </section>
+      </main>
+    );
+  }
+
+  const workspace = workspaceForRole(membership.role);
+
+  if (workspace === "DENIED") {
+    return (
+      <main className="privateLogin privateModuleScope">
+        <section>
+          <p className="privateEyebrow">ACCÈS REFUSÉ</p>
+          <h1>Ce rôle n’est pas autorisé.</h1>
+          <p>L’espace privé refuse tout rôle différent de Owner ou Personnel.</p>
+          <button className="privatePrimaryAction" onClick={signOut}>Se déconnecter</button>
+        </section>
+      </main>
+    );
+  }
+
+  if (workspace === "EMPLOYEE") {
+    return (
+      <div className="privateShell privateModuleScope employeeIntegratedShell">
+        <header className="privateTopbar">
+          <div className="brandButton"><span>T</span><strong>Tibaldo OS</strong></div>
+          <div />
+          <div className="topbarActions"><span className="roleBadge">Personnel</span><button onClick={signOut}>Déconnexion</button></div>
+        </header>
+        <EmployeePortal session={session} />
+      </div>
+    );
+  }
+
+  if (workspace !== "OWNER") return null;
 
   return (
     <div className="app">
@@ -345,8 +434,11 @@ export default function App() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={activeTab === tab.id ? "active" : ""}
-              onClick={() => setActiveTab(tab.id)}
+              className={[
+                activeTab === tab.id ? "active" : "",
+                tab.id === "opening" || tab.id === "team" ? "operationalTab" : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => navigateToTab(tab.id)}
             >
               <span>{tab.icon}</span>
               <small>{tab.label}</small>
@@ -412,6 +504,8 @@ export default function App() {
         {activeTab === "menage" && <HousekeepingDashboard />}
         {activeTab === "payments" && <PaymentsPage />}
         {activeTab === "balances" && <BalancesPage />}
+        {activeTab === "opening" && <OpeningControlCenter session={session} />}
+        {activeTab === "team" && <OwnerTeamOverview />}
         {activeTab === "revenues" && <RevenuePage />}
         {activeTab === "finances" && <FinancesPage />}
         {activeTab === "bankimport" && <BankImportPage />}
@@ -2680,13 +2774,16 @@ button { border: 0; cursor: pointer; }
 
 .topNav {
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  display: flex;
   gap: 4px;
   padding: 5px 6px 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
 
 .topNav button {
+  flex: 0 0 68px;
   border-radius: 15px;
   background: transparent;
   color: rgba(255,255,255,.68);
@@ -2694,6 +2791,7 @@ button { border: 0; cursor: pointer; }
   display: grid;
   gap: 1px;
   place-items: center;
+  scroll-snap-align: start;
 }
 
 .topNav button span { font-size: 18px; }
@@ -2702,6 +2800,15 @@ button { border: 0; cursor: pointer; }
 .topNav button.active {
   background: rgba(255,255,255,.16);
   color: white;
+}
+
+.topNav button.operationalTab {
+  color: #f0f4c3;
+}
+
+.topNav button.operationalTab.active {
+  color: #173f32;
+  background: #dce989;
 }
 
 .content {
@@ -3234,7 +3341,7 @@ textarea {
   }
 
   .topNav {
-    max-width: 780px;
+    max-width: 980px;
     margin: 0 auto;
     border-radius: 0 0 24px 24px;
   }

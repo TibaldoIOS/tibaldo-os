@@ -50,6 +50,7 @@ export default function OpeningControlCenter({ session }) {
   const [view, setView] = useState("TODAY");
   const [draft, setDraft] = useState(emptyDraft);
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -112,6 +113,7 @@ export default function OpeningControlCenter({ session }) {
     if (result.error) return setMessage(`Enregistrement impossible : ${result.error.message}`);
     setDraft(emptyDraft());
     setEditing(null);
+    setShowForm(false);
     setMessage(editing ? "Tâche mise à jour." : "Tâche ajoutée.");
     await loadTasks();
   }
@@ -129,7 +131,20 @@ export default function OpeningControlCenter({ session }) {
     await loadTasks();
   }
 
+  async function deleteTask(task) {
+    if (!window.confirm(`Supprimer « ${task.title} » ?`)) return;
+    const result = await supabase
+      .from("tibaldo_app_opening_tasks")
+      .delete()
+      .eq("id", task.id)
+      .eq("owner_user_id", session.user.id);
+    if (result.error) return setMessage(`Suppression impossible : ${result.error.message}`);
+    setMessage("Tâche supprimée.");
+    await loadTasks();
+  }
+
   function startEdit(task) {
+    setShowForm(true);
     setEditing(task.id);
     setDraft({
       title: task.title,
@@ -144,7 +159,9 @@ export default function OpeningControlCenter({ session }) {
       sort_order: task.sort_order,
       seed_key: task.seed_key,
     });
-    document.getElementById("opening-quick-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      document.getElementById("opening-quick-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   const [weekStart, weekEnd] = mondayAndSunday(TODAY);
@@ -162,10 +179,10 @@ export default function OpeningControlCenter({ session }) {
   }), [tasks]);
 
   return (
-    <main className="privatePage openingCenter" id="main-content">
+    <main className="privatePage privateModuleScope openingCenter" id="main-content">
       <header className="openingHero">
         <div>
-          <p className="eyebrow">OUVERTURE BOUTIQUE</p>
+          <p className="privateEyebrow">OUVERTURE BOUTIQUE</p>
           <h1>Cap sur le 26 septembre.</h1>
           <p>Un tableau simple pour décider quoi faire aujourd’hui, sans saturer la semaine.</p>
         </div>
@@ -175,7 +192,7 @@ export default function OpeningControlCenter({ session }) {
         </div>
       </header>
 
-      <section className="metricGrid" aria-label="Progression ouverture">
+      <section className="privateMetricGrid" aria-label="Progression ouverture">
         <article><strong>{metrics.progress}%</strong><span>progression globale</span></article>
         <article><strong>{metrics.p0}</strong><span>P0 restants</span></article>
         <article><strong>{metrics.today}</strong><span>à faire aujourd’hui</span></article>
@@ -184,30 +201,32 @@ export default function OpeningControlCenter({ session }) {
 
       <div className="progressTrack" aria-label={`Progression ${metrics.progress}%`}><span style={{ width: `${metrics.progress}%` }} /></div>
 
-      <nav className="segmented" aria-label="Période">
+      <nav className="privateSegmented" aria-label="Période">
         <button className={view === "TODAY" ? "active" : ""} onClick={() => setView("TODAY")}>Aujourd’hui</button>
         <button className={view === "WEEK" ? "active" : ""} onClick={() => setView("WEEK")}>Cette semaine</button>
         <button className={view === "ALL" ? "active" : ""} onClick={() => setView("ALL")}>Jusqu’à l’ouverture</button>
       </nav>
 
-      <form className="quickTaskForm" id="opening-quick-form" onSubmit={saveDraft}>
-        <div className="formHeading">
-          <div><p className="eyebrow">{editing ? "MODIFIER" : "AJOUT RAPIDE"}</p><h2>{editing ? "Ajuster la tâche" : "Ajouter une tâche"}</h2></div>
-          {editing && <button type="button" className="textButton" onClick={() => { setEditing(null); setDraft(emptyDraft()); }}>Annuler</button>}
+      {!showForm && <button className="openingAddButton" type="button" onClick={() => setShowForm(true)}>+ Ajouter une tâche</button>}
+
+      {showForm && <form className="quickTaskForm" id="opening-quick-form" onSubmit={saveDraft}>
+        <div className="privateFormHeading">
+          <div><p className="privateEyebrow">{editing ? "MODIFIER" : "AJOUT RAPIDE"}</p><h2>{editing ? "Ajuster la tâche" : "Ajouter une tâche"}</h2></div>
+          <button type="button" className="privateTextButton" onClick={() => { setEditing(null); setDraft(emptyDraft()); setShowForm(false); }}>Fermer</button>
         </div>
-        <label className="wideField">Titre<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Ce qu’il reste à faire" required /></label>
+        <label className="privateWideField">Titre<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Ce qu’il reste à faire" required /></label>
         <label>Date<input type="date" value={draft.due_date} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} /></label>
         <label>Catégorie<select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })}>{CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Priorité<select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value })}>{PRIORITIES.map((value) => <option key={value} value={value}>{PRIORITY_LABELS[value]}</option>)}</select></label>
         <label>Effort<select value={draft.effort} onChange={(event) => setDraft({ ...draft, effort: event.target.value })}>{EFFORTS.map((value) => <option key={value} value={value}>{EFFORT_LABELS[value]}</option>)}</select></label>
-        <label className="wideField">Note courte<textarea rows="2" value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
-        <button className="primaryAction" type="submit">{editing ? "Enregistrer" : "Ajouter"}</button>
-      </form>
+        <label className="privateWideField">Note courte<textarea rows="2" value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
+        <button className="privatePrimaryAction" type="submit">{editing ? "Enregistrer" : "Ajouter"}</button>
+      </form>}
 
-      {message && <p className="inlineMessage" role="status">{message}</p>}
-      {busy ? <div className="loadingCard">Chargement du plan…</div> : (
-        <section className="taskList" aria-live="polite">
-          {shown.length === 0 && <div className="emptyCard"><h2>Rien d’urgent ici.</h2><p>Cette vue est à jour.</p></div>}
+      {message && <p className="privateInlineMessage" role="status">{message}</p>}
+      {busy ? <div className="privateLoadingCard">Chargement du plan…</div> : (
+        <section className="openingTaskList" aria-live="polite">
+          {shown.length === 0 && <div className="privateEmptyCard"><h2>Rien d’urgent ici.</h2><p>Cette vue est à jour.</p></div>}
           {shown.map((item) => (
             <article className={`openingTask priority-${item.priority}`} key={item.id}>
               <button
@@ -224,6 +243,7 @@ export default function OpeningControlCenter({ session }) {
                   <button onClick={() => startEdit(item)}>Modifier</button>
                   <button onClick={() => patchTask(item, { due_date: tomorrowIso(TODAY), status: "DEFERRED" })}>Reporter à demain</button>
                   <button onClick={() => patchTask(item, { status: item.status === "IN_PROGRESS" ? "TODO" : "IN_PROGRESS" })}>{item.status === "IN_PROGRESS" ? "Remettre à faire" : "Commencer"}</button>
+                  <button className="dangerTaskAction" onClick={() => deleteTask(item)}>Supprimer</button>
                 </div>
               </div>
               <span className="priorityPill">{PRIORITY_LABELS[item.priority].split(" · ")[0]}</span>
