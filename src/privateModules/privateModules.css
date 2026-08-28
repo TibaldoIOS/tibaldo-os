@@ -99,6 +99,47 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .employeeMetricGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1rem; }
 .projectionNotice { margin: 1rem 0; padding: 1rem; border-left: 4px solid #d19a38; color: #594b2c; background: #f7efd9; }
 
+.employeeHoursReport { margin: 1.4rem 0 2rem; }
+.hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
+.hoursReportHeading h2 { margin: 0; color: var(--private-forest); font-family: Georgia, serif; font-size: clamp(2rem, 5vw, 3.8rem); font-weight: 500; line-height: 1; letter-spacing: -.035em; }
+.hoursReportHeading p:not(.privateEyebrow) { max-width: 700px; margin: .7rem 0 0; color: var(--private-muted); line-height: 1.55; }
+.hoursAuthorityNote { flex: 0 0 min(34%, 350px); padding: .9rem 1rem; border-left: 3px solid #789176; background: #e8eee3; font-size: .84rem; }
+.hoursSummary { margin-bottom: 1.2rem; }
+.hoursPeriodNav { margin: 1.4rem 0; }
+.hoursPeriodNav .privateSegmented { margin-bottom: .8rem; }
+.monthHistoryControls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; width: min(100%, 430px); border: 1px solid var(--private-line); border-radius: 12px; background: var(--private-white); }
+.monthHistoryControls strong { text-align: center; text-transform: capitalize; }
+.monthHistoryControls button { min-height: 44px; border: 0; color: var(--private-forest); background: transparent; font-size: 1.2rem; }
+.monthHistoryControls button:disabled { cursor: default; opacity: .3; }
+.hoursDailyReport { display: grid; gap: 1rem; }
+.hoursDayCard { overflow: hidden; border: 1px solid var(--private-line); border-radius: 18px; background: var(--private-white); }
+.hoursDayCard > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; color: white; background: var(--private-forest); }
+.hoursDayCard > header span { color: #c8dacf; font-size: .72rem; font-weight: 750; letter-spacing: .08em; }
+.hoursDayCard > header h3 { margin: .2rem 0 0; font-family: Georgia, serif; font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 500; text-transform: capitalize; }
+.dayTotal { flex: 0 0 auto; text-align: right; }
+.dayTotal span, .dayTotal strong { display: block; }
+.dayTotal strong { margin-top: .2rem; font-size: 1.2rem; }
+.dayInterventions { display: grid; }
+.hoursIntervention { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(150px, .8fr) auto; gap: 1rem; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--private-line); }
+.hoursIntervention:last-child { border-bottom: 0; }
+.interventionIdentity strong, .interventionIdentity span { display: block; }
+.interventionIdentity span { margin-top: .25rem; color: var(--private-muted); font-size: .82rem; }
+.interventionMeta { display: flex; flex-wrap: wrap; gap: .35rem; }
+.interventionMeta span { padding: .3rem .5rem; border-radius: 999px; color: #4a625a; background: #ecede7; font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
+.interventionDuration { color: var(--private-forest); font-family: Georgia, serif; font-size: 1.35rem; white-space: nowrap; }
+.hoursPeriodTotal { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding: 1.1rem 1.2rem; border: 1px solid #789176; border-radius: 14px; color: var(--private-forest); background: var(--private-sage); }
+.hoursPeriodTotal span { font-size: .78rem; font-weight: 850; letter-spacing: .1em; }
+.hoursPeriodTotal strong { font-family: Georgia, serif; font-size: 1.8rem; font-weight: 500; }
+.hoursEmptyState { margin-bottom: 1rem; }
+.hoursEmptyState h3 { margin: 0; font-family: Georgia, serif; font-size: 1.5rem; font-weight: 500; }
+.ownerEmployeeDirectory { margin: 2rem 0 1.2rem; }
+.employeeProfilePicker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+.employeeProfilePicker button { display: grid; gap: .35rem; min-height: 82px; padding: .9rem 1rem; border: 1px solid var(--private-line); border-radius: 14px; color: var(--private-ink); background: var(--private-white); text-align: left; }
+.employeeProfilePicker button.active { color: white; background: var(--private-forest); border-color: var(--private-forest); }
+.employeeProfilePicker span { font-size: 1.05rem; font-weight: 800; }
+.employeeProfilePicker strong { color: var(--private-muted); font-size: .82rem; }
+.employeeProfilePicker button.active strong { color: #d5e3da; }
+
 .privateLogin, .privateSplash { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: radial-gradient(circle at 80% 10%, #d8e7ce 0, transparent 32%), var(--private-paper); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .privateLogin section { width: min(100%, 540px); padding: clamp(1.4rem, 5vw, 3rem); border: 1px solid var(--private-line); border-radius: 24px; background: rgba(255,254,250,.94); box-shadow: 0 30px 80px rgba(20,55,45,.11); }
 .privateLogin h1 { font-size: clamp(2.7rem, 10vw, 4.5rem); }
@@ -118,6 +159,9 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .durationSubmit { grid-column: 1 / -1; }
   .ownerTeamGrid { grid-template-columns: 1fr; }
   .employeeMetricGrid { grid-template-columns: 1fr 1fr; }
+  .hoursReportHeading { align-items: stretch; flex-direction: column; gap: .8rem; }
+  .hoursAuthorityNote { flex-basis: auto; }
+  .employeeProfilePicker { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -142,6 +186,18 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .employeeMetricGrid { grid-template-columns: 1fr; }
   .durationSubmit { grid-column: 1; }
   .employeeHistoryList > div, .teamRow { align-items: start; flex-direction: column; }
+  .hoursSummary { grid-template-columns: 1fr 1fr; }
+  .hoursSummary article:first-child { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--private-line); }
+  .hoursSummary article:nth-child(2) { border-bottom: 0; }
+  .hoursReportHeading { margin-top: 1.4rem; }
+  .hoursReportHeading h2 { font-size: 2.35rem; }
+  .hoursDayCard > header { align-items: start; padding: .9rem; }
+  .hoursDayCard > header h3 { font-size: 1.35rem; }
+  .hoursIntervention { grid-template-columns: minmax(0, 1fr) auto; gap: .7rem; padding: .9rem; }
+  .interventionMeta { grid-column: 1 / -1; grid-row: 2; }
+  .interventionDuration { grid-column: 2; grid-row: 1; align-self: start; font-size: 1.2rem; }
+  .hoursPeriodTotal { box-shadow: 0 12px 32px rgba(13,76,58,.12); }
+  .employeeProfilePicker { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
