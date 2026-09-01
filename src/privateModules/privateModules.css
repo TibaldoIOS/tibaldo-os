@@ -105,13 +105,33 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .teamBalanceDirectory strong, .teamBalanceDirectory small { display: block; }
 .teamBalanceDirectory strong { margin-bottom: .3rem; font-family: Georgia, serif; font-size: 1.45rem; }
 .teamBalanceDirectory small { color: var(--private-muted); }
-.teamFilters { display: grid; grid-template-columns: 1.3fr repeat(4, minmax(130px, 1fr)); gap: .65rem; margin: 1rem 0; }
-.teamFilters input, .teamFilters select, .paymentAction input { min-height: 44px; width: 100%; padding: .65rem .75rem; border: 1px solid var(--private-line); border-radius: 10px; color: var(--private-ink); background: var(--private-white); }
+.teamFilters { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: .65rem; margin: 1rem 0; }
+.teamFilters input, .teamFilters select, .paymentAction input, .paymentAction select { min-height: 44px; width: 100%; padding: .65rem .75rem; border: 1px solid var(--private-line); border-radius: 10px; color: var(--private-ink); background: var(--private-white); }
 .reviewPill { display: inline-block; margin-left: .45rem; padding: .24rem .45rem; border-radius: 999px; color: #6f4913; background: #f5dfb8; font-size: .68rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
-.paymentAction { display: grid; grid-template-columns: 1.5fr repeat(4, minmax(120px, 1fr)) auto; gap: .8rem; align-items: end; margin-top: 1rem; padding: 1.2rem; border-radius: 18px; background: var(--private-sage); }
+.paymentAction { display: grid; grid-template-columns: 1.5fr repeat(5, minmax(120px, 1fr)) auto; gap: .8rem; align-items: end; margin-top: 1rem; padding: 1.2rem; border-radius: 18px; background: var(--private-sage); }
 .paymentAction h2 { margin: 0; font-family: Georgia, serif; font-weight: 500; }
 .paymentAction p:not(.privateEyebrow) { margin: .45rem 0 0; color: var(--private-muted); font-size: .84rem; }
 .paymentAction label { display: grid; gap: .35rem; color: #37594f; font-size: .78rem; font-weight: 750; }
+.teamSummary { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 1rem; }
+.teamSummary strong { font-size: clamp(1.65rem, 3vw, 2.6rem); }
+.sectionTitle, .personOperationalDetail h2, .propertyReviewQueue h2 { color: var(--private-forest); font-family: Georgia, serif; font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 500; }
+.personOperationalDetail { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+.personOperationalDetail > article { min-width: 0; padding: 1.2rem; border: 1px solid var(--private-line); border-radius: 16px; background: var(--private-white); }
+.personOperationalDetail h2 { margin-top: 0; }
+.personOperationalDetail .adjustmentPanel { grid-column: 1 / -1; border-color: #d3a897; background: #fbede8; }
+.adjustmentRow { display: flex; align-items: start; justify-content: space-between; gap: 1.5rem; }
+.adjustmentRow h3 { margin: .8rem 0 .35rem; }
+.adjustmentRow p { max-width: 720px; color: #6f4a41; line-height: 1.5; }
+.adjustmentRow > strong, .detailBalance { color: var(--private-alert); font-family: Georgia, serif; font-size: 2rem; white-space: nowrap; }
+.propertyReviewQueue { margin-top: 1.4rem; padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid #d5bb82; border-radius: 20px; background: #f7efd9; }
+.propertyReviewQueue h2 { margin: 0; }
+.reviewDecisionCard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); gap: 1rem; margin-top: 1rem; padding: 1rem; border-radius: 14px; background: var(--private-white); }
+.reviewDecisionCard span, .reviewDecisionCard small, .reviewDecisionCard code { display: block; margin-top: .35rem; }
+.reviewDecisionCard small, .reviewDecisionCard code { color: var(--private-muted); overflow-wrap: anywhere; }
+.reviewActions { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; align-content: start; }
+.reviewActions button { min-height: 42px; padding: .55rem; border: 1px solid #c8b172; border-radius: 9px; color: var(--private-forest); background: #fffdf5; }
+.employeeAdjustment { background: #fbede8; }
+.employeeAdjustment span small { display: block; max-width: 650px; margin-top: .3rem; color: #765147; }
 
 .employeeHoursReport { margin: 1.4rem 0 2rem; }
 .hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
@@ -180,6 +200,11 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .teamFilters { grid-template-columns: 1fr 1fr; }
   .paymentAction { grid-template-columns: 1fr 1fr; }
   .paymentAction > div { grid-column: 1 / -1; }
+  .teamSummary { grid-template-columns: 1fr 1fr; }
+  .teamSummary article:last-child { grid-column: 1 / -1; }
+  .personOperationalDetail { grid-template-columns: 1fr; }
+  .personOperationalDetail .adjustmentPanel { grid-column: 1; }
+  .reviewDecisionCard { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -218,6 +243,9 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .employeeProfilePicker { grid-template-columns: 1fr; }
   .teamFilters, .paymentAction { grid-template-columns: 1fr; }
   .paymentAction > div { grid-column: 1; }
+  .teamSummary { grid-template-columns: 1fr 1fr; }
+  .adjustmentRow { flex-direction: column; }
+  .reviewActions { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

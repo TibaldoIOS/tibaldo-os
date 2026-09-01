@@ -24,3 +24,19 @@ Le Sheet n'est jamais interrogé pour calculer un solde dans le nouveau module P
 - Ne jamais supprimer ni modifier le Google Form ou son Sheet dans cette phase.
 - Conserver l'écriture anonyme historique tant que `PrestatairePage.jsx` l'utilise ; statut Wave 1 : `LEGACY_FORM_WRITE_STILL_REQUIRED`.
 - En cas d'échec, marquer le batch `FAILED`. Le rollback cible uniquement les lignes portant son `source_system`/`import_batch_id`.
+
+## Wave 2 — résolution et incrémental
+
+- `Gare` est une propriété canonique. `Lily` est un alias vers le même UUID.
+- `Tibado House` n'est jamais un alias de propriété : chaque ligne est résolue
+  depuis son propre payload source.
+- `NO_PROPERTY_REQUIRED` est un état terminal légitime, distinct de
+  `PROPERTY_REVIEW_REQUIRED`.
+- `tibaldo_app_resolve_property_mapping` applique une décision Owner idempotente,
+  auditée en append-only, sans modifier le payload source.
+- `tibaldo_app_sync_housekeeping_row` renvoie `NO_DUPLICATE` pour une identité et
+  un hash déjà importés. Si le hash change, la ligne existante n'est pas écrasée :
+  la fonction renvoie `REVIEW_REQUIRED` et journalise `IMPORT_CONFLICT`.
+- L'écriture Jennifer de −91,50 EUR reste incluse dans la réconciliation sous la
+  classification `LEGACY_BALANCE_CORRECTION_ORIGIN_NOT_PROVEN`. Ce n'est ni un
+  paiement bancaire ni une allocation à une prestation.

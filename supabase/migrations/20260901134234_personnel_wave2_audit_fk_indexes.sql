@@ -1,0 +1,10 @@
+create index if not exists tibaldo_app_personnel_audit_actor_idx
+  on public.tibaldo_app_personnel_audit_events(actor_user_id);
+create index if not exists tibaldo_app_property_decision_entry_idx
+  on public.tibaldo_app_property_mapping_decisions(housekeeping_entry_id);
+create index if not exists tibaldo_app_property_decision_previous_property_idx
+  on public.tibaldo_app_property_mapping_decisions(previous_property_id);
+create index if not exists tibaldo_app_property_decision_property_idx
+  on public.tibaldo_app_property_mapping_decisions(decided_property_id);
+create index if not exists tibaldo_app_property_decision_actor_idx
+  on public.tibaldo_app_property_mapping_decisions(actor_user_id);
