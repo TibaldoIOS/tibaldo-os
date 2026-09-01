@@ -4,6 +4,7 @@ import {
   calculateCleanerBalances,
   DEFAULT_HOURLY_RATE,
   DEFAULT_LINEN_RATE,
+  isCanonicalPersonnelPayment,
 } from "./services/cleanerBalanceService";
 
 const SHEET_CSV_URL =
@@ -23,14 +24,17 @@ export default function BalancesPage() {
     try {
       const [sheetResponse, paymentsResult] = await Promise.all([
         fetch(SHEET_CSV_URL, { cache: "no-store" }),
-        supabase.from("cleaner_payments").select("cleaner_name, amount, payment_date, note"),
+        supabase.from("cleaner_payments").select("cleaner_name, amount, payment_date, note, person_id, payment_kind"),
       ]);
 
       if (!sheetResponse.ok) throw new Error(`Google Sheets a répondu ${sheetResponse.status}`);
       if (paymentsResult.error) throw paymentsResult.error;
 
       const csvText = await sheetResponse.text();
-      setSource({ csvText, payments: paymentsResult.data || [] });
+      setSource({
+        csvText,
+        payments: (paymentsResult.data || []).filter(isCanonicalPersonnelPayment),
+      });
       setUpdatedAt(new Date());
     } catch (loadError) {
       console.error("Erreur de rapprochement des balances", loadError);

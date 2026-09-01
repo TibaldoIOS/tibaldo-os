@@ -2766,6 +2766,8 @@ button { border: 0; cursor: pointer; }
 }
 
 .logoutSmall {
+  min-width: 44px;
+  min-height: 44px;
   background: rgba(255,255,255,.14);
   color: white;
   border-radius: 999px;

@@ -1,5 +1,14 @@
 export const DEFAULT_HOURLY_RATE = 15;
 export const DEFAULT_LINEN_RATE = 3;
+const CANONICAL_PAYMENT_KINDS = new Set([
+  "WAGE_PAYMENT",
+  "EXPENSE_REIMBURSEMENT",
+  "LEGACY_ADJUSTMENT",
+]);
+
+export function isCanonicalPersonnelPayment(payment) {
+  return Boolean(payment?.person_id) && CANONICAL_PAYMENT_KINDS.has(payment?.payment_kind);
+}
 
 export function getCurrentWeekStart(now = new Date()) {
   const start = new Date(now);
@@ -128,6 +137,7 @@ function detectColumns(columns) {
 }
 
 export function isBalancePayment(payment) {
+  if (payment?.payment_kind === "EXPENSE_REIMBURSEMENT") return false;
   const note = normalize(payment?.note);
   return !/(^|\s)(affiche|affiches|achat|achats|ticket|tickets|frais|remboursement|remboursements)(\s|$)/.test(note);
 }

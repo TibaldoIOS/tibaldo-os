@@ -1,6 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateCleanerBalances, isBalancePayment } from "./cleanerBalanceService.js";
+import {
+  calculateCleanerBalances,
+  isBalancePayment,
+  isCanonicalPersonnelPayment,
+} from "./cleanerBalanceService.js";
+
+test("identifies canonical personnel payments and excludes orphan fixtures", () => {
+  assert.equal(isCanonicalPersonnelPayment({
+    person_id: "person-id",
+    payment_kind: "WAGE_PAYMENT",
+  }), true);
+  assert.equal(isCanonicalPersonnelPayment({
+    person_id: "person-id",
+    payment_kind: "LEGACY_ADJUSTMENT",
+  }), true);
+  assert.equal(isCanonicalPersonnelPayment({
+    cleaner_name: "Aperçu Personnel TEST",
+    note: "Fixture synthétique BÊTA",
+  }), false);
+});
 
 test("reconciles all sheet hours and reimbursements with manual transfers", () => {
   const csv = [
@@ -141,6 +160,7 @@ test("excludes expense reimbursements from balances while keeping wage adjustmen
   assert.equal(row.total_paid, 62.34);
   assert.equal(row.balance, 102.66);
   assert.equal(isBalancePayment({ note: "Affiches Fives" }), false);
+  assert.equal(isBalancePayment({ payment_kind: "EXPENSE_REIMBURSEMENT", note: "Autre libellé" }), false);
   assert.equal(isBalancePayment({ note: "Remboursement achat produits" }), false);
   assert.equal(isBalancePayment({ note: "Ajustement" }), true);
 });

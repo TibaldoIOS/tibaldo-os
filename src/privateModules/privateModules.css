@@ -27,7 +27,7 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .privateTopbar nav button.active { color: var(--private-forest); background: var(--private-white); }
 .topbarActions { display: flex; align-items: center; gap: .7rem; }
 .roleBadge { padding: .35rem .65rem; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; font-size: .76rem; text-transform: uppercase; letter-spacing: .09em; }
-.topbarActions button { text-decoration: underline; text-underline-offset: 4px; }
+.topbarActions button { min-width: 44px; min-height: 44px; padding: .55rem .7rem; text-decoration: underline; text-underline-offset: 4px; }
 
 .privatePage { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(2rem, 6vw, 5.5rem) 0 5rem; }
 .openingHero, .employeeHero { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; }
