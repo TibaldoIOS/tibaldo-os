@@ -56,6 +56,8 @@ const tabs = [
 
 function initialTabFromLocation() {
   const route = window.location.hash.replace(/^#\/?/, "");
+  if (route === "me") return "team";
+  if (route.startsWith("team/")) return "team";
   return tabs.some((tab) => tab.id === route) ? route : "home";
 }
 
@@ -136,7 +138,7 @@ export default function App() {
   function navigateToTab(tabId) {
     setActiveTab(tabId);
     if (tabId === "opening" || tabId === "team") window.location.hash = tabId;
-    else if (window.location.hash === "#opening" || window.location.hash === "#team") {
+    else if (window.location.hash === "#opening" || window.location.hash.startsWith("#team")) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
   }

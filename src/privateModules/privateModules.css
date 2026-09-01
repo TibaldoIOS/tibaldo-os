@@ -58,7 +58,7 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .privateWideField { grid-column: 1 / -1; }
 .privatePrimaryAction, .openingAddButton { min-height: 44px; padding: .75rem 1rem; border: 0; border-radius: 10px; color: white; background: var(--private-forest); font-weight: 750; }
 .openingAddButton { margin: 0 0 1.2rem; }
-.privateTextButton { border: 0; color: var(--private-forest); background: transparent; text-decoration: underline; }
+.privateTextButton { min-height: 44px; padding: .55rem .7rem; border: 0; color: var(--private-forest); background: transparent; text-decoration: underline; }
 .privateInlineMessage { padding: .8rem 1rem; border-left: 4px solid var(--private-forest); background: #e7eee5; }
 
 .openingTaskList, .employeeCards { display: grid; gap: .8rem; }
@@ -98,6 +98,20 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .teamRow small { margin-top: .25rem; color: var(--private-muted); }
 .employeeMetricGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1rem; }
 .projectionNotice { margin: 1rem 0; padding: 1rem; border-left: 4px solid #d19a38; color: #594b2c; background: #f7efd9; }
+.balanceMetricGrid { margin-bottom: 1.25rem; }
+.teamBalanceDirectory { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.teamBalanceDirectory button { display: flex; justify-content: space-between; gap: 1rem; min-height: 112px; padding: 1.1rem; border: 1px solid var(--private-line); border-radius: 16px; color: var(--private-ink); background: var(--private-white); text-align: left; }
+.teamBalanceDirectory button > span:last-child { text-align: right; }
+.teamBalanceDirectory strong, .teamBalanceDirectory small { display: block; }
+.teamBalanceDirectory strong { margin-bottom: .3rem; font-family: Georgia, serif; font-size: 1.45rem; }
+.teamBalanceDirectory small { color: var(--private-muted); }
+.teamFilters { display: grid; grid-template-columns: 1.3fr repeat(4, minmax(130px, 1fr)); gap: .65rem; margin: 1rem 0; }
+.teamFilters input, .teamFilters select, .paymentAction input { min-height: 44px; width: 100%; padding: .65rem .75rem; border: 1px solid var(--private-line); border-radius: 10px; color: var(--private-ink); background: var(--private-white); }
+.reviewPill { display: inline-block; margin-left: .45rem; padding: .24rem .45rem; border-radius: 999px; color: #6f4913; background: #f5dfb8; font-size: .68rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+.paymentAction { display: grid; grid-template-columns: 1.5fr repeat(4, minmax(120px, 1fr)) auto; gap: .8rem; align-items: end; margin-top: 1rem; padding: 1.2rem; border-radius: 18px; background: var(--private-sage); }
+.paymentAction h2 { margin: 0; font-family: Georgia, serif; font-weight: 500; }
+.paymentAction p:not(.privateEyebrow) { margin: .45rem 0 0; color: var(--private-muted); font-size: .84rem; }
+.paymentAction label { display: grid; gap: .35rem; color: #37594f; font-size: .78rem; font-weight: 750; }
 
 .employeeHoursReport { margin: 1.4rem 0 2rem; }
 .hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
@@ -162,6 +176,10 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .hoursReportHeading { align-items: stretch; flex-direction: column; gap: .8rem; }
   .hoursAuthorityNote { flex-basis: auto; }
   .employeeProfilePicker { grid-template-columns: 1fr 1fr; }
+  .teamBalanceDirectory { grid-template-columns: 1fr; }
+  .teamFilters { grid-template-columns: 1fr 1fr; }
+  .paymentAction { grid-template-columns: 1fr 1fr; }
+  .paymentAction > div { grid-column: 1 / -1; }
 }
 
 @media (max-width: 520px) {
@@ -198,6 +216,8 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .interventionDuration { grid-column: 2; grid-row: 1; align-self: start; font-size: 1.2rem; }
   .hoursPeriodTotal { box-shadow: 0 12px 32px rgba(13,76,58,.12); }
   .employeeProfilePicker { grid-template-columns: 1fr; }
+  .teamFilters, .paymentAction { grid-template-columns: 1fr; }
+  .paymentAction > div { grid-column: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
