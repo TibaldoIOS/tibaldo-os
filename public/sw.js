@@ -1,4 +1,4 @@
-const CACHE_NAME = "tibaldo-os-v2";
+const CACHE_NAME = "tibaldo-os-v3-wave2";
 const STATIC_SHELL = [
   "/manifest.webmanifest",
   "/app-icon.svg",
