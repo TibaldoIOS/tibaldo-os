@@ -14,7 +14,7 @@ Le Sheet n'est jamais interrogé pour calculer un solde dans le nouveau module P
 2. Construire pour chaque ligne un `source_record_id` déterministe composé du snapshot, du numéro de ligne source et d'un préfixe du hash du payload brut. Ce nom documente qu'il ne s'agit pas d'un identifiant natif Google Forms.
 3. Conserver le payload brut, son hash, les libellés personne/logement, l'horodatage de soumission et les snapshots de taux.
 4. Résoudre les personnes par alias canonique. Résoudre uniquement les logements dont l'alias est certifié ; laisser `property_id` vide et marquer `OWNER_REVIEW_REQUIRED` dans les autres cas.
-5. Écrire par upsert sur l'identité unique `(source_system, source_record_id)`. Une relecture du même snapshot met à jour la même ligne et ne peut pas en créer une seconde.
+5. Écrire via le contrat incrémental sur l'identité unique `(source_system, source_record_id)`. Une relecture avec le même hash renvoie `NO_DUPLICATE`. Un hash différent renvoie `REVIEW_REQUIRED` et n'écrase jamais la ligne canonique.
 6. Vérifier les compteurs, hashes distincts, totaux par personne, solde global et anomalies avant de passer le batch à `VERIFIED`.
 
 ## Garde-fous
@@ -40,3 +40,18 @@ Le Sheet n'est jamais interrogé pour calculer un solde dans le nouveau module P
 - L'écriture Jennifer de −91,50 EUR reste incluse dans la réconciliation sous la
   classification `LEGACY_BALANCE_CORRECTION_ORIGIN_NOT_PROVEN`. Ce n'est ni un
   paiement bancaire ni une allocation à une prestation.
+
+## Wave 3 — pont canonique opérationnel
+
+- Le snapshot courant contient 208 lignes. Les 206 premières correspondent au
+  checkpoint Wave 2, hachage par hachage ; seules les lignes source 208 et 209
+  sont nouvelles.
+- Le pont incrémental conserve désormais les champs opérationnels complets :
+  ligne source, achats, listes de pièces/surfaces/chambres/photos, remarque et
+  description de mission.
+- Une mission générique `Tibado House` sans indice de logement reste
+  `NO_PROPERTY_REQUIRED`. Une mention explicite de `Fives` reste un indice de
+  rattachement ; les autres cas demeurent fermés à la revue Owner.
+- Les écrans Ménage, Virements et Balances conservent leur calcul/UX existants.
+  Le module Personnel lit uniquement les projections canoniques serveur en
+  bêta privée ; aucun basculement de production n'est effectué.
