@@ -130,12 +130,25 @@ export function EmployeePortal({ session }) {
   const [search, setSearch] = useState("");
   const [property, setProperty] = useState("");
   const [serviceType, setServiceType] = useState("");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [withLinen, setWithLinen] = useState(false);
+  const [withOther, setWithOther] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   const range = useMemo(() => {
     const now = new Date();
     if (period === "ALL") return { start: null, end: null };
+    if (period === "CUSTOM") return { start: customStart || null, end: customEnd || null };
+    if (period === "CURRENT_WEEK") {
+      const start = new Date(now);
+      const weekday = (start.getDay() + 6) % 7;
+      start.setDate(start.getDate() - weekday);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+    }
     const start = period === "PREVIOUS_MONTH"
       ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
       : new Date(now.getFullYear(), now.getMonth(), 1);
@@ -143,7 +156,7 @@ export function EmployeePortal({ session }) {
       ? new Date(now.getFullYear(), now.getMonth(), 0)
       : new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  }, [period]);
+  }, [customEnd, customStart, period]);
 
   async function load() {
     setLoading(true);
@@ -175,7 +188,9 @@ export function EmployeePortal({ session }) {
   const serviceTypes = [...new Set(entries.map((item) => item.service_type).filter(Boolean))].sort();
   const visibleEntries = entries.filter((item) => (!property || item.property === property)
     && (!serviceType || item.service_type === serviceType)
-    && (!normalizedSearch || [item.property, item.service_type, item.mission, item.remarks]
+    && (!withLinen || Number(item.linen_pairs || 0) > 0)
+    && (!withOther || Number(item.due_other || 0) > 0 || Boolean(item.mission))
+    && (!normalizedSearch || [item.property, item.service_type, item.mission, item.remarks, item.service_date, formatDate(item.service_date)]
       .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch)));
   const grouped = visibleEntries.reduce((result, item) => {
     (result[item.property] ||= []).push(item);
@@ -196,7 +211,7 @@ export function EmployeePortal({ session }) {
           <h1>{portal ? `Bonjour ${portal.profile.display_name}.` : "Votre espace."}</h1>
           <p>Vos heures, prestations, paiements et solde — uniquement les vôtres.</p>
         </div>
-        <a className="privatePrimaryAction employeeReportLink" href="mailto:contact@tibaldo.fr?subject=Espace%20Personnel%20-%20erreur%20%C3%A0%20v%C3%A9rifier">Signaler une erreur</a>
+        <button className="privatePrimaryAction employeeReportLink" onClick={() => setMessage("Notez la date et l’élément concerné, puis contactez directement le Owner. Aucune donnée n’a été modifiée.")}>Signaler une erreur</button>
       </header>
 
       <nav className="privateSegmented employeeNav" aria-label="Espace personnel">
@@ -207,19 +222,22 @@ export function EmployeePortal({ session }) {
         <button className={view === "HISTORY" ? "active" : ""} onClick={() => setView("HISTORY")}>Historique</button>
       </nav>
       <section className="employeeControls" aria-label="Période et recherche">
-        <label>Période<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="CURRENT_MONTH">Mois en cours</option><option value="PREVIOUS_MONTH">Mois précédent</option><option value="ALL">Tout l’historique</option></select></label>
+        <label>Période<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="CURRENT_WEEK">Cette semaine</option><option value="CURRENT_MONTH">Ce mois</option><option value="PREVIOUS_MONTH">Mois précédent</option><option value="ALL">Tout l’historique</option><option value="CUSTOM">Personnalisé</option></select></label>
         <label>Rechercher<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Logement, mission, remarque…" /></label>
         <label>Logement<select value={property} onChange={(event) => setProperty(event.target.value)}><option value="">Tous</option>{properties.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option key={item}>{item}</option>)}</select></label>
+        {period === "CUSTOM" && <><label>Du<input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label><label>Au<input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label></>}
+        <label className="employeeCheck"><input type="checkbox" checked={withLinen} onChange={(event) => setWithLinen(event.target.checked)} /> Avec linge</label>
+        <label className="employeeCheck"><input type="checkbox" checked={withOther} onChange={(event) => setWithOther(event.target.checked)} /> Autres / achats</label>
       </section>
       {message && <p className="privateInlineMessage" role="status">{message}</p>}
       {loading && <div className="privateLoadingCard" role="status">Chargement de votre espace…</div>}
 
-      {!loading && view === "DASHBOARD" && summary && balance && <><section className="privateMetricGrid balanceMetricGrid"><article><strong>{formatDuration(summary.minutes)}</strong><span>Heures sur la période</span></article><article><strong>{money(summary.total_due)}</strong><span>Dû sur la période</span></article><article><strong>{money(summary.paid)}</strong><span>Payé sur la période</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Solde actuel</span></article></section><p className="projectionNotice">Le solde actuel porte sur tout l’historique. Les remboursements de frais ({money(balance.excluded_reimbursements)}) restent hors salaire.</p></>}
+      {!loading && view === "DASHBOARD" && summary && balance && <><section className="privateMetricGrid balanceMetricGrid"><article><strong>{formatDuration(summary.minutes)}</strong><span>Heures sur la période</span></article><article><strong>{money(summary.total_due)}</strong><span>Montant dû</span></article><article><strong>{money(summary.paid)}</strong><span>Montant payé</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Reste à payer</span></article></section><section className="employeeSecondaryMetrics"><article><span>Linge</span><strong>{summary.linen_pairs} paire(s) · {money(summary.due_laundry)}</strong></article><article><span>Autres missions / frais</span><strong>{money(summary.due_other)}</strong></article></section><section className="balanceEquation" aria-label="Calcul du solde"><div><span>Total dû</span><strong>{money(balance.total_due)}</strong></div><i>−</i><div><span>Paiements pris en compte</span><strong>{money(balance.paid_and_adjustments)}</strong></div><i>=</i><div><span>Reste à payer</span><strong>{money(balance.current)}</strong></div></section><p className="projectionNotice">Le solde actuel porte sur tout l’historique. Les remboursements de frais ({money(balance.excluded_reimbursements)}) restent hors salaire.</p></>}
 
       {!loading && view === "HOURS" && <EntryList entries={visibleEntries} />}
 
-      {!loading && view === "PROPERTIES" && <section className="propertyGroups">{Object.entries(grouped).map(([name, items]) => <article key={name}><h2>{name}</h2><p>{items.length} prestation(s) · {formatDuration(items.reduce((sum, item) => sum + Number(item.minutes || 0), 0))} · {money(items.reduce((sum, item) => sum + Number(item.total_due || 0), 0))}</p><EntryList entries={items} /></article>)}{Object.keys(grouped).length === 0 && <EmptyPeriod />}</section>}
+      {!loading && view === "PROPERTIES" && <section className="propertyGroups">{Object.entries(grouped).map(([name, items]) => <article key={name} className={name === "Sans logement requis" ? "noPropertyGroup" : ""}><p className="privateEyebrow">{name === "Sans logement requis" ? "MISSIONS SANS LOGEMENT" : "LOGEMENT"}</p><h2>{name}</h2><div className="propertyMetrics"><span><b>{formatDuration(items.reduce((sum, item) => sum + Number(item.minutes || 0), 0))}</b> heures</span><span><b>{items.length}</b> prestations</span><span><b>{items.reduce((sum, item) => sum + Number(item.linen_pairs || 0), 0)}</b> linge</span><span><b>{money(items.reduce((sum, item) => sum + Number(item.due_other || 0), 0))}</b> autres</span><span><b>{money(items.reduce((sum, item) => sum + Number(item.total_due || 0), 0))}</b> total dû</span></div><button className="privateTextButton" onClick={() => { setProperty(name); setView("HOURS"); }}>Voir le détail chronologique</button></article>)}{Object.keys(grouped).length === 0 && <EmptyPeriod />}</section>}
 
       {!loading && view === "PAYMENTS" && <section className="employeePayments"><section className="privateMetricGrid balanceMetricGrid"><article><strong>{money(balance.total_due)}</strong><span>Total dû</span></article><article><strong>{money(balance.paid_and_adjustments)}</strong><span>Payé et ajustements</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Reste à payer</span></article><article><strong>{money(balance.excluded_reimbursements)}</strong><span>Remboursements hors salaire</span></article></section><div className="employeeHistoryList">{payments.map((item, index) => <div className={item.kind === "LEGACY_ADJUSTMENT" ? "employeeAdjustment" : ""} key={`${item.payment_date}-${index}`}><span><b>{item.label}</b><small>{formatDate(item.payment_date)}{item.note ? ` · ${item.note}` : ""}</small></span><strong>{money(item.amount)}</strong></div>)}{payments.length === 0 && <EmptyPeriod />}</div></section>}
 
@@ -238,7 +256,7 @@ function EmptyPeriod() {
 
 function EntryList({ entries }) {
   if (entries.length === 0) return <EmptyPeriod />;
-  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{item.service_type || "Prestation"}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{item.mission && <p>{item.mission}</p>}{item.remarks && <small>{item.remarks}</small>}</div></article>)}</section>;
+  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{item.service_type || "Prestation"}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{Number(item.due_other || 0) > 0 && <p>Autre mission / achat : {money(item.due_other)}</p>}{item.mission && <p>{item.mission}</p>}{item.remarks && <details><summary>Voir la remarque</summary><p>{item.remarks}</p></details>}</div></article>)}</section>;
 }
 
 export function OwnerTeamOverview() {
