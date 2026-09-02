@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 const allowedOrigins = new Set([
   "https://tibaldo-app-private-beta.pages.dev",
   "https://employee-hotfix-qa.tibaldo-app-private-beta.pages.dev",
+  "https://owner-team-v2-qa.tibaldo-app-private-beta.pages.dev",
   "http://localhost:5173",
 ]);
 

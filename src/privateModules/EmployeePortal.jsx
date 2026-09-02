@@ -458,11 +458,18 @@ function ownerPeriodRange(period, customRange) {
   const offset = period === "PREVIOUS_MONTH" ? -1 : period === "THREE_MONTHS" ? -2 : 0;
   const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const end = period === "PREVIOUS_MONTH" ? new Date(now.getFullYear(), now.getMonth(), 0) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) };
+  return { start: localDateValue(start), end: localDateValue(end) };
 }
 
 function dateInRange(value, range) {
   return (!range.start || value >= range.start) && (!range.end || value <= range.end);
+}
+
+function localDateValue(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function propertyFilterKey(item) {
