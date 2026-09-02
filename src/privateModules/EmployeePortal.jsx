@@ -147,7 +147,7 @@ export function EmployeePortal({ session }) {
       start.setDate(start.getDate() - weekday);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+      return { start: localDateValue(start), end: localDateValue(end) };
     }
     const start = period === "PREVIOUS_MONTH"
       ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -155,7 +155,7 @@ export function EmployeePortal({ session }) {
     const end = period === "PREVIOUS_MONTH"
       ? new Date(now.getFullYear(), now.getMonth(), 0)
       : new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+    return { start: localDateValue(start), end: localDateValue(end) };
   }, [customEnd, customStart, period]);
 
   async function load() {
@@ -225,7 +225,7 @@ export function EmployeePortal({ session }) {
         <label>Période<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="CURRENT_WEEK">Cette semaine</option><option value="CURRENT_MONTH">Ce mois</option><option value="PREVIOUS_MONTH">Mois précédent</option><option value="ALL">Tout l’historique</option><option value="CUSTOM">Personnalisé</option></select></label>
         <label>Rechercher<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Logement, mission, remarque…" /></label>
         <label>Logement<select value={property} onChange={(event) => setProperty(event.target.value)}><option value="">Tous</option>{properties.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option value={item} key={item}>{serviceTypeLabel(item)}</option>)}</select></label>
         {period === "CUSTOM" && <><label>Du<input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label><label>Au<input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label></>}
         <label className="employeeCheck"><input type="checkbox" checked={withLinen} onChange={(event) => setWithLinen(event.target.checked)} /> Avec linge</label>
         <label className="employeeCheck"><input type="checkbox" checked={withOther} onChange={(event) => setWithOther(event.target.checked)} /> Autres / achats</label>
@@ -241,7 +241,7 @@ export function EmployeePortal({ session }) {
 
       {!loading && view === "PAYMENTS" && <section className="employeePayments"><section className="privateMetricGrid balanceMetricGrid"><article><strong>{money(balance.total_due)}</strong><span>Total dû</span></article><article><strong>{money(balance.paid_and_adjustments)}</strong><span>Payé et ajustements</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Reste à payer</span></article><article><strong>{money(balance.excluded_reimbursements)}</strong><span>Remboursements hors salaire</span></article></section><div className="employeeHistoryList">{payments.map((item, index) => <div className={item.kind === "LEGACY_ADJUSTMENT" ? "employeeAdjustment" : ""} key={`${item.payment_date}-${index}`}><span><b>{item.label}</b><small>{formatDate(item.payment_date)}{item.note ? ` · ${item.note}` : ""}</small></span><strong>{money(item.amount)}</strong></div>)}{payments.length === 0 && <EmptyPeriod />}</div></section>}
 
-      {!loading && view === "HISTORY" && <section className="employeeHistoryList">{history.map(({ date, kind, item }, index) => <div key={`${date}-${kind}-${index}`}><span><b>{kind === "entry" ? item.property : item.label}</b><small>{formatDate(date)} · {kind === "entry" ? `${item.service_type || "Prestation"} · ${formatDuration(item.minutes)}` : (item.note || "Paiement")}</small></span><strong>{money(kind === "entry" ? item.total_due : item.amount)}</strong></div>)}{history.length === 0 && <EmptyPeriod />}</section>}
+      {!loading && view === "HISTORY" && <section className="employeeHistoryList">{history.map(({ date, kind, item }, index) => <div key={`${date}-${kind}-${index}`}><span><b>{kind === "entry" ? item.property : item.label}</b><small>{formatDate(date)} · {kind === "entry" ? `${serviceTypeLabel(item.service_type)} · ${formatDuration(item.minutes)}` : (item.note || "Paiement")}</small></span><strong>{money(kind === "entry" ? item.total_due : item.amount)}</strong></div>)}{history.length === 0 && <EmptyPeriod />}</section>}
     </main>
   );
 }
@@ -256,7 +256,7 @@ function EmptyPeriod() {
 
 function EntryList({ entries }) {
   if (entries.length === 0) return <EmptyPeriod />;
-  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{item.service_type || "Prestation"}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{Number(item.due_other || 0) > 0 && <p>Autre mission / achat : {money(item.due_other)}</p>}{item.mission && <p>{item.mission}</p>}{item.remarks && <details><summary>Voir la remarque</summary><p>{item.remarks}</p></details>}</div></article>)}</section>;
+  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{serviceTypeLabel(item.service_type)}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{Number(item.due_other || 0) > 0 && <p>Autre mission / achat : {money(item.due_other)}</p>}{item.mission && <p>{item.mission}</p>}{item.remarks && <details><summary>Voir la remarque</summary><p>{item.remarks}</p></details>}</div></article>)}</section>;
 }
 
 export function OwnerTeamOverview() {
