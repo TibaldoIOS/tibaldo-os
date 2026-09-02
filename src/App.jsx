@@ -78,11 +78,14 @@ const seedTasks = [
 ];
 
 export default function App() {
+  const employeeRoute = window.location.pathname.startsWith("/equipe");
+  const recoveryRoute = window.location.pathname.startsWith("/equipe/reinitialiser");
   const [session, setSession] = useState(null);
   const [membership, setMembership] = useState(null);
   const [accessReady, setAccessReady] = useState(false);
-  const [authEmail, setAuthEmail] = useState("contact@tibaldo.fr");
+  const [authEmail, setAuthEmail] = useState(employeeRoute ? "" : "contact@tibaldo.fr");
   const [authPassword, setAuthPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [activeTab, setActiveTab] = useState(initialTabFromLocation);
   const [selectedAnimalKey, setSelectedAnimalKey] = useState("uzy");
@@ -148,6 +151,23 @@ export default function App() {
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
     if (error) return setAuthMessage("Erreur connexion : " + error.message);
     setAuthMessage("Connecté ✅");
+  }
+
+  async function requestPasswordReset() {
+    if (!authEmail) return setAuthMessage("Saisissez votre adresse email.");
+    setAuthMessage("Envoi du lien sécurisé…");
+    const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
+      redirectTo: `${window.location.origin}/equipe/reinitialiser`,
+    });
+    setAuthMessage(error ? `Demande impossible : ${error.message}` : "Si ce compte existe, un lien sécurisé a été envoyé.");
+  }
+
+  async function updatePassword() {
+    if (newPassword.length < 10) return setAuthMessage("Utilisez au moins 10 caractères.");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return setAuthMessage(`Modification impossible : ${error.message}`);
+    setAuthMessage("Mot de passe mis à jour.");
+    window.history.replaceState(null, "", "/equipe/");
   }
 
   async function signOut() {
@@ -343,6 +363,22 @@ export default function App() {
   }
 
   if (!session) {
+    if (employeeRoute) return (
+      <main className="privateLogin privateModuleScope">
+        <section>
+          <p className="privateEyebrow">ESPACE PERSONNEL · PRIVÉ</p>
+          <h1>Connexion équipe</h1>
+          <p>Accédez uniquement à vos heures, prestations, paiements et solde.</p>
+          <form onSubmit={(event) => { event.preventDefault(); void signIn(); }}>
+            <label>Email<input type="email" autoComplete="username" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} /></label>
+            <label>Mot de passe<input type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} /></label>
+            <button className="privatePrimaryAction" type="submit">Se connecter</button>
+            <button className="privateTextButton" type="button" onClick={requestPasswordReset}>Mot de passe oublié</button>
+          </form>
+          {authMessage && <p className="privateInlineMessage" role="status">{authMessage}</p>}
+        </section>
+      </main>
+    );
     return (
       <div className="app loginApp">
         <div className="loginCard">
@@ -391,6 +427,14 @@ export default function App() {
   }
 
   const workspace = workspaceForRole(membership.role);
+
+  if (recoveryRoute) {
+    return <main className="privateLogin privateModuleScope"><section><p className="privateEyebrow">ESPACE PERSONNEL · SÉCURISÉ</p><h1>Nouveau mot de passe</h1><p>Choisissez un mot de passe personnel d’au moins 10 caractères.</p><form onSubmit={(event) => { event.preventDefault(); void updatePassword(); }}><label>Nouveau mot de passe<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label><button className="privatePrimaryAction" type="submit">Enregistrer</button></form>{authMessage && <p className="privateInlineMessage" role="status">{authMessage}</p>}</section></main>;
+  }
+
+  if (employeeRoute && workspace === "OWNER") {
+    return <main className="privateLogin privateModuleScope"><section><p className="privateEyebrow">SESSION OWNER DÉTECTÉE</p><h1>Espace Personnel protégé.</h1><p>Cette adresse ne montre jamais les données Owner. Revenez à l’application ou déconnectez-vous pour tester une identité Personnel.</p><div className="employeeGateActions"><a className="privatePrimaryAction" href="/">Retour à Tibaldo OS</a><button className="privateTextButton" onClick={signOut}>Se déconnecter</button></div></section></main>;
+  }
 
   if (workspace === "DENIED") {
     return (

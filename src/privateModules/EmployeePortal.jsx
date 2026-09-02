@@ -124,44 +124,40 @@ export function HoursReport({ entries, title = "Rapport d’heures", subtitle })
 }
 
 export function EmployeePortal({ session }) {
-  const [profile, setProfile] = useState(null);
-  const [entries, setEntries] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [balances, setBalances] = useState([]);
-  const [view, setView] = useState("BALANCE");
+  const [portal, setPortal] = useState(null);
+  const [view, setView] = useState("DASHBOARD");
+  const [period, setPeriod] = useState("CURRENT_MONTH");
+  const [search, setSearch] = useState("");
+  const [property, setProperty] = useState("");
+  const [serviceType, setServiceType] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const range = useMemo(() => {
+    const now = new Date();
+    if (period === "ALL") return { start: null, end: null };
+    const start = period === "PREVIOUS_MONTH"
+      ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = period === "PREVIOUS_MONTH"
+      ? new Date(now.getFullYear(), now.getMonth(), 0)
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }, [period]);
 
   async function load() {
     setLoading(true);
     setMessage("");
-    const profileQuery = await supabase
-      .from("tibaldo_app_employee_profiles")
-      .select("id, user_id, display_name, active")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-
-    if (profileQuery.error || !profileQuery.data?.active) {
-      setMessage("Aucun profil Personnel actif n’est rattaché à ce compte.");
-      setLoading(false);
-      return;
-    }
-    setProfile(profileQuery.data);
-
-    const [entryQuery, paymentQuery, balanceQuery] = await Promise.all([
-      supabase.rpc("tibaldo_app_person_entries"),
-      supabase.rpc("tibaldo_app_person_payments"),
-      supabase.rpc("tibaldo_app_personnel_balances"),
-    ]);
-
-    if (entryQuery.error || paymentQuery.error || balanceQuery.error) {
+    const result = await supabase.rpc("tibaldo_app_employee_portal_v1", {
+      period_start: range.start,
+      period_end: range.end,
+    });
+    if (result.error || !result.data) {
       setMessage("Vos informations n’ont pas pu être chargées.");
       setLoading(false);
       return;
     }
-    setEntries(normalizeEntries(entryQuery.data || []));
-    setPayments(paymentQuery.data || []);
-    setBalances(balanceQuery.data || []);
+    setPortal(result.data);
     setLoading(false);
   }
 
@@ -170,51 +166,79 @@ export function EmployeePortal({ session }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.user.id]);
+  }, [session.user.id, range.start, range.end]);
 
-  const balance = balances[0];
+  const entries = portal?.entries || [];
+  const payments = portal?.payments || [];
+  const normalizedSearch = search.trim().toLocaleLowerCase("fr");
+  const properties = [...new Set(entries.map((item) => item.property))].sort();
+  const serviceTypes = [...new Set(entries.map((item) => item.service_type).filter(Boolean))].sort();
+  const visibleEntries = entries.filter((item) => (!property || item.property === property)
+    && (!serviceType || item.service_type === serviceType)
+    && (!normalizedSearch || [item.property, item.service_type, item.mission, item.remarks]
+      .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch)));
+  const grouped = visibleEntries.reduce((result, item) => {
+    (result[item.property] ||= []).push(item);
+    return result;
+  }, {});
+  const history = [
+    ...visibleEntries.map((item) => ({ date: item.service_date, kind: "entry", item })),
+    ...payments.map((item) => ({ date: item.payment_date, kind: "payment", item })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+  const summary = portal?.period_summary;
+  const balance = portal?.balance;
 
   return (
     <main className="privatePage privateModuleScope employeePortal" id="main-content">
       <header className="employeeHero">
         <div>
           <p className="privateEyebrow">ESPACE PERSONNEL</p>
-          <h1>{profile ? `Bonjour ${profile.display_name}.` : "Votre espace."}</h1>
-          <p>Vos ménages, vos heures enregistrées et vos règlements — uniquement les vôtres.</p>
+          <h1>{portal ? `Bonjour ${portal.profile.display_name}.` : "Votre espace."}</h1>
+          <p>Vos heures, prestations, paiements et solde — uniquement les vôtres.</p>
         </div>
+        <a className="privatePrimaryAction employeeReportLink" href="mailto:contact@tibaldo.fr?subject=Espace%20Personnel%20-%20erreur%20%C3%A0%20v%C3%A9rifier">Signaler une erreur</a>
       </header>
 
       <nav className="privateSegmented employeeNav" aria-label="Espace personnel">
-        <button className={view === "BALANCE" ? "active" : ""} onClick={() => setView("BALANCE")}>Mon récapitulatif</button>
-        <button className={view === "CLEANING" ? "active" : ""} onClick={() => setView("CLEANING")}>Mes prestations</button>
-        <button className={view === "HOURS" ? "active" : ""} onClick={() => setView("HOURS")}>Mes heures</button>
-        <button className={view === "PAYMENTS" ? "active" : ""} onClick={() => setView("PAYMENTS")}>Mes paiements</button>
+        <button className={view === "DASHBOARD" ? "active" : ""} onClick={() => setView("DASHBOARD")}>Tableau de bord</button>
+        <button className={view === "HOURS" ? "active" : ""} onClick={() => setView("HOURS")}>Heures & prestations</button>
+        <button className={view === "PROPERTIES" ? "active" : ""} onClick={() => setView("PROPERTIES")}>Par logement</button>
+        <button className={view === "PAYMENTS" ? "active" : ""} onClick={() => setView("PAYMENTS")}>Paiements</button>
+        <button className={view === "HISTORY" ? "active" : ""} onClick={() => setView("HISTORY")}>Historique</button>
       </nav>
+      <section className="employeeControls" aria-label="Période et recherche">
+        <label>Période<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="CURRENT_MONTH">Mois en cours</option><option value="PREVIOUS_MONTH">Mois précédent</option><option value="ALL">Tout l’historique</option></select></label>
+        <label>Rechercher<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Logement, mission, remarque…" /></label>
+        <label>Logement<select value={property} onChange={(event) => setProperty(event.target.value)}><option value="">Tous</option>{properties.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option key={item}>{item}</option>)}</select></label>
+      </section>
       {message && <p className="privateInlineMessage" role="status">{message}</p>}
       {loading && <div className="privateLoadingCard" role="status">Chargement de votre espace…</div>}
 
-      {!loading && view === "BALANCE" && balance && <BalanceCards balance={balance} personal />}
+      {!loading && view === "DASHBOARD" && summary && balance && <><section className="privateMetricGrid balanceMetricGrid"><article><strong>{formatDuration(summary.minutes)}</strong><span>Heures sur la période</span></article><article><strong>{money(summary.total_due)}</strong><span>Dû sur la période</span></article><article><strong>{money(summary.paid)}</strong><span>Payé sur la période</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Solde actuel</span></article></section><p className="projectionNotice">Le solde actuel porte sur tout l’historique. Les remboursements de frais ({money(balance.excluded_reimbursements)}) restent hors salaire.</p></>}
 
-      {!loading && view === "CLEANING" && <section className="employeeCards">
-        {entries.length === 0 && <div className="privateEmptyCard"><h2>Aucun ménage enregistré.</h2><p>Cette vue reprend le registre Ménage existant ; elle ne crée pas un second planning.</p></div>}
-        {entries.map((item) => <article className="employeeCard employeeProjectionCard" key={item.id}>
-          <div className="employeeCardDate"><strong>{new Date(item.occurred_at).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</strong><span>Date de service</span></div>
-          <div className="employeeCardBody"><span className="statusPill">{statusLabel(item.status)}</span>{item.mapping_status === "OWNER_REVIEW_REQUIRED" && <span className="reviewPill">À vérifier</span>}<h2>{item.property || "Sans logement requis"}</h2><p>{item.service_type || "Ménage"} · {formatDuration(item.minutes)} · {money(item.due_total_amount)}</p></div>
-        </article>)}
-      </section>}
+      {!loading && view === "HOURS" && <EntryList entries={visibleEntries} />}
 
-      {!loading && view === "HOURS" && <HoursReport
-        entries={entries}
-        title="Mes heures"
-        subtitle="Votre relevé journalier, hebdomadaire et mensuel, sans exposer les données d’un autre membre de l’équipe."
-      />}
+      {!loading && view === "PROPERTIES" && <section className="propertyGroups">{Object.entries(grouped).map(([name, items]) => <article key={name}><h2>{name}</h2><p>{items.length} prestation(s) · {formatDuration(items.reduce((sum, item) => sum + Number(item.minutes || 0), 0))} · {money(items.reduce((sum, item) => sum + Number(item.total_due || 0), 0))}</p><EntryList entries={items} /></article>)}{Object.keys(grouped).length === 0 && <EmptyPeriod />}</section>}
 
-      {!loading && view === "PAYMENTS" && <section className="employeePayments">
-        {balance && <BalanceCards balance={balance} personal />}
-        <div className="employeeHistoryList">{payments.map((item) => item.payment_kind === "LEGACY_ADJUSTMENT" ? <div className="employeeAdjustment" key={item.id}><span><b>Ajustement historique</b><small>{new Date(`${item.payment_date}T12:00:00`).toLocaleDateString("fr-FR")} · contre-écriture historique, origine métier non démontrée</small></span><strong>{money(item.amount)}</strong></div> : <div key={item.id}><span>{new Date(`${item.payment_date}T12:00:00`).toLocaleDateString("fr-FR")}</span><strong>{money(item.amount)}</strong></div>)}</div>
-      </section>}
+      {!loading && view === "PAYMENTS" && <section className="employeePayments"><section className="privateMetricGrid balanceMetricGrid"><article><strong>{money(balance.total_due)}</strong><span>Total dû</span></article><article><strong>{money(balance.paid_and_adjustments)}</strong><span>Payé et ajustements</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Reste à payer</span></article><article><strong>{money(balance.excluded_reimbursements)}</strong><span>Remboursements hors salaire</span></article></section><div className="employeeHistoryList">{payments.map((item, index) => <div className={item.kind === "LEGACY_ADJUSTMENT" ? "employeeAdjustment" : ""} key={`${item.payment_date}-${index}`}><span><b>{item.label}</b><small>{formatDate(item.payment_date)}{item.note ? ` · ${item.note}` : ""}</small></span><strong>{money(item.amount)}</strong></div>)}{payments.length === 0 && <EmptyPeriod />}</div></section>}
+
+      {!loading && view === "HISTORY" && <section className="employeeHistoryList">{history.map(({ date, kind, item }, index) => <div key={`${date}-${kind}-${index}`}><span><b>{kind === "entry" ? item.property : item.label}</b><small>{formatDate(date)} · {kind === "entry" ? `${item.service_type || "Prestation"} · ${formatDuration(item.minutes)}` : (item.note || "Paiement")}</small></span><strong>{money(kind === "entry" ? item.total_due : item.amount)}</strong></div>)}{history.length === 0 && <EmptyPeriod />}</section>}
     </main>
   );
+}
+
+function formatDate(value) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function EmptyPeriod() {
+  return <div className="privateEmptyCard"><h2>Aucune donnée sur cette période.</h2><p>Essayez une autre période ou retirez un filtre.</p></div>;
+}
+
+function EntryList({ entries }) {
+  if (entries.length === 0) return <EmptyPeriod />;
+  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{item.service_type || "Prestation"}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{item.mission && <p>{item.mission}</p>}{item.remarks && <small>{item.remarks}</small>}</div></article>)}</section>;
 }
 
 export function OwnerTeamOverview() {
@@ -231,7 +255,7 @@ export function OwnerTeamOverview() {
   async function load() {
     setLoading(true);
     const [profileQuery, entryQuery, paymentQuery, balanceQuery] = await Promise.all([
-      supabase.from("tibaldo_app_employee_profiles").select("id, display_name, active, staff_key").in("staff_key", ["gaelle", "jennifer", "rachida"]).order("display_name"),
+      supabase.from("tibaldo_app_employee_profiles").select("id, user_id, display_name, active, status, staff_key").in("staff_key", ["gaelle", "jennifer", "rachida"]).order("display_name"),
       supabase.rpc("tibaldo_app_person_entries"),
       supabase.rpc("tibaldo_app_person_payments"),
       supabase.rpc("tibaldo_app_personnel_balances"),
@@ -328,7 +352,7 @@ export function OwnerTeamOverview() {
 
     {!loading && !selectedProfile && <section className="teamBalanceDirectory">{directory.map((item) => <button key={item.person_id} onClick={() => openProfile(item.person_id)}><span><strong>{item.display_name}</strong><small>{Number(item.total_hours).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h · {item.linen_pairs} jeux de linge</small><small>{money(item.due_work)} travail · {money(item.due_laundry)} linge · {money(item.due_other)} autres</small></span><span><small>Payé {money(item.wage_payments_included)}</small><strong>{money(item.balance)}</strong></span></button>)}</section>}
 
-    {!loading && selectedBalance && <section aria-labelledby="synthese-title"><h2 id="synthese-title" className="sectionTitle">Synthèse</h2><BalanceCards balance={selectedBalance} /></section>}
+    {!loading && selectedBalance && <section aria-labelledby="synthese-title"><h2 id="synthese-title" className="sectionTitle">Synthèse</h2><div className="employeeAccountStatus"><span><b>Compte Personnel</b><small>{selectedProfile?.user_id ? (selectedProfile.active && selectedProfile.status === "ACTIVE" ? "Actif" : "Désactivé") : "Non créé — aucune invitation envoyée"}</small></span><strong>{selectedProfile?.user_id ? "LIÉ" : "À INVITER APRÈS GO"}</strong></div><BalanceCards balance={selectedBalance} /></section>}
 
     {!loading && selectedProfile && <PersonOperationalDetail entries={visibleEntries} payments={ordinaryPayments} adjustments={adjustments} balance={selectedBalance} />}
 

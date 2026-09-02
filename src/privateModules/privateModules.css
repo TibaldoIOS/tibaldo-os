@@ -132,6 +132,20 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .reviewActions button { min-height: 42px; padding: .55rem; border: 1px solid #c8b172; border-radius: 9px; color: var(--private-forest); background: #fffdf5; }
 .employeeAdjustment { background: #fbede8; }
 .employeeAdjustment span small { display: block; max-width: 650px; margin-top: .3rem; color: #765147; }
+.employeeReportLink { align-self: start; color: white; text-decoration: none; white-space: nowrap; }
+.employeeControls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; margin: 0 0 1.4rem; padding: 1rem; border-radius: 16px; background: var(--private-sage); }
+.employeeControls label { display: grid; gap: .35rem; color: #37594f; font-size: .78rem; font-weight: 750; }
+.employeeControls input, .employeeControls select { width: 100%; min-width: 0; min-height: 44px; padding: .65rem .75rem; border: 1px solid #bbc9bb; border-radius: 10px; color: var(--private-ink); background: var(--private-white); }
+.propertyGroups { display: grid; gap: 1rem; }
+.propertyGroups > article { min-width: 0; padding: 1rem; border: 1px solid var(--private-line); border-radius: 18px; background: rgba(255,254,250,.55); }
+.propertyGroups > article > h2 { margin: 0; color: var(--private-forest); font-family: Georgia, serif; font-size: 2rem; font-weight: 500; }
+.propertyGroups > article > p { color: var(--private-muted); }
+.employeeGateActions { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; margin-top: 1.2rem; }
+.employeeGateActions a { text-decoration: none; }
+.employeeAccountStatus { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--private-line); border-radius: 14px; background: var(--private-white); }
+.employeeAccountStatus span, .employeeAccountStatus small { display: block; }
+.employeeAccountStatus small { margin-top: .25rem; color: var(--private-muted); }
+.employeeAccountStatus > strong { color: var(--private-forest); font-size: .76rem; letter-spacing: .08em; }
 
 .employeeHoursReport { margin: 1.4rem 0 2rem; }
 .hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
@@ -205,6 +219,7 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .personOperationalDetail { grid-template-columns: 1fr; }
   .personOperationalDetail .adjustmentPanel { grid-column: 1; }
   .reviewDecisionCard { grid-template-columns: 1fr; }
+  .employeeControls { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -246,6 +261,9 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .teamSummary { grid-template-columns: 1fr 1fr; }
   .adjustmentRow { flex-direction: column; }
   .reviewActions { grid-template-columns: 1fr; }
+  .employeeControls { grid-template-columns: 1fr; }
+  .employeeReportLink { width: 100%; text-align: center; }
+  .employeeAccountStatus { align-items: start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
