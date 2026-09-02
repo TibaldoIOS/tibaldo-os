@@ -169,6 +169,118 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .employeeInviteForm label { display: grid; gap: .35rem; color: #37594f; font-size: .78rem; font-weight: 750; }
 .employeeInviteForm input { min-width: 0; min-height: 44px; padding: .65rem .75rem; border: 1px solid #bbc9bb; border-radius: 10px; }
 
+/* Owner Team Experience V2 */
+.ownerTeamV2 { --owner-cream: #f7f4ec; --owner-green: #123f34; --owner-mint: #e6eee8; max-width: 1240px; }
+.ownerDirectoryHeader, .ownerPersonHeader { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; margin-bottom: 1.25rem; }
+.ownerDirectoryHeader h1, .ownerPersonHeader h1 { margin: 0; color: var(--owner-green); font-family: Georgia, serif; font-size: clamp(2.4rem, 6vw, 4.5rem); font-weight: 500; line-height: .95; letter-spacing: -.045em; }
+.ownerDirectoryHeader p, .ownerPersonHeader p { margin: .45rem 0 0; color: var(--private-muted); }
+.ownerDirectoryTotal, .ownerCurrentBalance { display: grid; gap: .2rem; min-width: 180px; text-align: right; }
+.ownerDirectoryTotal span, .ownerCurrentBalance span, .ownerCurrentBalance small { color: var(--private-muted); font-size: .75rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.ownerDirectoryTotal strong, .ownerCurrentBalance strong { color: var(--owner-green); font-family: Georgia, serif; font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 500; }
+.ownerTeamStrip { display: flex; flex-wrap: wrap; gap: .55rem; margin-bottom: 1rem; }
+.ownerTeamStrip span { padding: .65rem .85rem; border: 1px solid var(--private-line); border-radius: 999px; color: var(--private-muted); background: rgba(255,255,255,.68); font-size: .8rem; }
+.ownerTeamStrip b { color: var(--owner-green); }
+.ownerPeopleGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.ownerPeopleGrid button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .8rem; align-items: center; min-height: 104px; padding: 1rem; border: 1px solid var(--private-line); border-radius: 18px; color: var(--private-ink); background: var(--private-white); text-align: left; transition: transform .18s ease, box-shadow .18s ease; }
+.ownerPeopleGrid button:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(18,63,52,.09); }
+.ownerPeopleGrid span > strong, .ownerPeopleGrid small { display: block; }
+.ownerPeopleGrid span > strong { margin-bottom: .25rem; font-size: 1.05rem; }
+.ownerPeopleGrid small { color: var(--private-muted); }
+.ownerAvatar { display: grid; flex: 0 0 auto; place-items: center; width: 48px; height: 48px; border-radius: 15px; color: #fff; background: var(--owner-green); font-family: Georgia, serif; font-size: 1.45rem; }
+.ownerPersonBalance { text-align: right; }
+.ownerPersonBalance strong { color: var(--owner-green); font-family: Georgia, serif; font-size: 1.35rem; }
+.ownerReviewSummary { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; padding: .9rem 1rem; border-radius: 14px; background: var(--owner-mint); }
+.ownerReviewSummary span, .ownerReviewSummary small { display: block; }
+.ownerReviewSummary small { margin-top: .2rem; color: var(--private-muted); }
+.ownerReviewSummary > strong { font-size: 1.5rem; }
+
+.ownerPersonHeader { display: grid; grid-template-columns: auto minmax(260px, 1fr) auto auto; padding-bottom: 1rem; border-bottom: 1px solid var(--private-line); }
+.ownerBackButton { align-self: start; min-height: 44px; padding: .55rem .75rem; border: 1px solid var(--private-line); border-radius: 10px; color: var(--owner-green); background: var(--private-white); }
+.ownerIdentity { display: flex; align-items: center; gap: .9rem; }
+.ownerIdentity h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); }
+.ownerIdentity p:last-child { display: flex; align-items: center; gap: .4rem; font-size: .82rem; }
+.accountStatusDot { width: 8px; height: 8px; border-radius: 50%; background: #8da098; }
+.accountStatusDot.active { background: #2b9368; }
+.accountStatusDot.disabled { background: #b65b45; }
+.accountStatusDot.invited { background: #d49a2d; }
+.ownerPeriodBar { display: flex; align-items: center; gap: .35rem; overflow-x: auto; margin: 1rem 0; padding-bottom: .25rem; scrollbar-width: thin; }
+.ownerPeriodBar > span:first-child { margin-right: .3rem; color: var(--private-muted); font-size: .72rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.ownerPeriodBar button { flex: 0 0 auto; min-height: 40px; padding: .5rem .8rem; border: 1px solid var(--private-line); border-radius: 999px; color: var(--owner-green); background: var(--private-white); }
+.ownerPeriodBar button.active { color: #fff; border-color: var(--owner-green); background: var(--owner-green); }
+.ownerCustomDates { display: flex; gap: .35rem; }
+.ownerCustomDates input { min-height: 40px; padding: .45rem; border: 1px solid var(--private-line); border-radius: 9px; background: #fff; }
+.ownerKpiStrip { display: grid; grid-template-columns: 1.1fr 1.1fr 1.1fr 1.25fr .72fr .72fr; overflow: hidden; margin: 1rem 0; border: 1px solid var(--private-line); border-radius: 20px; background: var(--private-white); box-shadow: 0 12px 42px rgba(18,63,52,.06); }
+.ownerKpiStrip article { display: grid; align-content: center; min-width: 0; min-height: 108px; padding: 1rem; border-right: 1px solid var(--private-line); }
+.ownerKpiStrip article:last-child { border-right: 0; }
+.ownerKpiStrip span, .ownerKpiStrip small { color: var(--private-muted); font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .045em; }
+.ownerKpiStrip strong { overflow-wrap: anywhere; margin-top: .4rem; color: var(--owner-green); font-family: Georgia, serif; font-size: clamp(1.45rem, 2.5vw, 2.15rem); font-weight: 500; }
+.ownerKpiStrip .ownerBalanceKpi { color: #fff; background: var(--owner-green); }
+.ownerKpiStrip .ownerBalanceKpi strong { color: #fff; }
+.ownerKpiStrip .ownerBalanceKpi span, .ownerKpiStrip .ownerBalanceKpi small { color: #bfd2c9; }
+.ownerKpiStrip .ownerMinorKpi { background: var(--owner-cream); }
+.ownerTabs { display: flex; gap: .15rem; overflow-x: auto; margin: 1.25rem 0; border-bottom: 1px solid var(--private-line); }
+.ownerTabs button { flex: 0 0 auto; min-height: 46px; padding: .7rem .95rem; border: 0; border-bottom: 3px solid transparent; color: var(--private-muted); background: transparent; font-weight: 750; }
+.ownerTabs button.active { color: var(--owner-green); border-bottom-color: var(--owner-green); }
+.ownerTabs button:focus-visible, .ownerPeriodBar button:focus-visible, .ownerPeopleGrid button:focus-visible { outline: 3px solid #d3a849; outline-offset: 2px; }
+
+.ownerOverview { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .9fr); gap: 1rem; }
+.ownerPanel { min-width: 0; padding: 1rem; border: 1px solid var(--private-line); border-radius: 18px; background: var(--private-white); }
+.ownerPanel h2, .ownerPaymentsHeader h2, .ownerAccountPanel h2 { margin: .15rem 0; color: var(--owner-green); font-family: Georgia, serif; font-size: clamp(1.55rem, 3vw, 2.2rem); font-weight: 500; }
+.ownerPanelHeading, .ownerPaymentsHeader { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.ownerActivityPanel { grid-row: span 2; }
+.ownerCompactList { margin-top: .8rem; }
+.ownerEntryRow { display: grid; grid-template-columns: 120px minmax(0, 1fr) 70px 90px; align-items: center; padding: .75rem .2rem; }
+.ownerEntryRow time, .ownerPaymentRow time { color: var(--private-muted); font-size: .76rem; text-transform: capitalize; }
+.ownerEntryRow > span small { margin-top: .2rem; }
+.ownerEntryDuration { color: var(--owner-green); font-family: Georgia, serif; font-size: 1.05rem; }
+.ownerPropertyChart { display: grid; align-content: start; gap: .65rem; }
+.ownerPropertyChart > button { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: .7rem; align-items: center; min-height: 44px; padding: 0; border: 0; color: var(--private-ink); background: transparent; text-align: left; }
+.ownerPropertyChart button span, .ownerPropertyChart button small { display: block; }
+.ownerPropertyChart small { margin-top: .12rem; color: var(--private-muted); }
+.ownerPropertyChart i { overflow: hidden; height: 8px; border-radius: 999px; background: #e4e8e2; }
+.ownerPropertyChart i b { display: block; height: 100%; border-radius: inherit; background: #6d927e; }
+.ownerPaymentSnapshot p { color: var(--private-muted); }
+.ownerDataToolbar { display: grid; grid-template-columns: 1.6fr repeat(3, minmax(130px, .7fr)); gap: .6rem; margin-bottom: .8rem; padding: .8rem; border-radius: 14px; background: var(--owner-mint); }
+.ownerDataToolbar label, .ownerPaymentSearch { display: grid; gap: .3rem; color: #37594f; font-size: .72rem; font-weight: 800; }
+.ownerDataToolbar input, .ownerDataToolbar select, .ownerPaymentSearch input { width: 100%; min-width: 0; min-height: 44px; padding: .6rem .7rem; border: 1px solid #bbc9bb; border-radius: 9px; background: #fff; }
+.ownerEntriesTable, .ownerPaymentList { overflow: hidden; border: 1px solid var(--private-line); border-radius: 16px; background: #fff; }
+.ownerLoadMore { display: grid; place-items: center; width: 100%; min-height: 50px; margin-top: .7rem; border: 1px solid var(--private-line); border-radius: 12px; color: var(--owner-green); background: var(--private-white); font-weight: 800; }
+.ownerLoadMore small { color: var(--private-muted); font-weight: 500; }
+.ownerPropertyGrid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.ownerPropertyGrid > button { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .85rem; padding: 1rem; border: 1px solid var(--private-line); border-radius: 18px; color: var(--private-ink); background: var(--private-white); text-align: left; }
+.ownerPropertyGrid > button.noPropertyGroup { border-color: #cfbd84; background: #f8f0d8; }
+.ownerPropertyIcon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: var(--owner-green); background: var(--owner-mint); font-size: 1.35rem; }
+.ownerPropertyGrid h2 { margin: .1rem 0; color: var(--owner-green); font-family: Georgia, serif; font-size: 1.65rem; font-weight: 500; }
+.ownerPropertyGrid dl { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); gap: .45rem; margin: .4rem 0 0; }
+.ownerPropertyGrid dl div { padding: .55rem; border-radius: 9px; background: var(--owner-cream); }
+.ownerPropertyGrid dt { color: var(--private-muted); font-size: .68rem; text-transform: uppercase; }
+.ownerPropertyGrid dd { margin: .2rem 0 0; color: var(--owner-green); font-weight: 800; }
+.ownerCardArrow { position: absolute; top: 1rem; right: 1rem; color: var(--owner-green); font-size: 1.2rem; }
+.ownerPaymentsHeader { margin-bottom: 1rem; }
+.ownerPaymentsHeader p { margin: .25rem 0 0; color: var(--private-muted); }
+.ownerPaymentTotals { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; margin-bottom: .8rem; border: 1px solid var(--private-line); border-radius: 14px; background: #fff; }
+.ownerPaymentTotals span { display: grid; gap: .25rem; padding: .9rem; border-right: 1px solid var(--private-line); }
+.ownerPaymentTotals span:last-child { border-right: 0; color: #fff; background: var(--owner-green); }
+.ownerPaymentTotals small { color: inherit; opacity: .7; text-transform: uppercase; }
+.ownerPaymentTotals b { font-family: Georgia, serif; font-size: 1.45rem; font-weight: 500; }
+.ownerPaymentSearch { margin-bottom: .8rem; }
+.ownerPaymentRow { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; align-items: center; }
+.ownerPaymentRow span small, .ownerPaymentRow span em { display: block; margin-top: .2rem; }
+.ownerPaymentRow span em { width: max-content; padding: .18rem .38rem; border-radius: 999px; color: #765b20; background: #f4e5b8; font-size: .66rem; font-style: normal; font-weight: 800; }
+.ownerPaymentRow.reimbursement { background: #fffaf0; }
+.ownerAccountPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1.2rem; border: 1px solid var(--private-line); border-radius: 18px; background: #fff; }
+.ownerAccountPanel .employeeInviteForm { grid-column: 1 / -1; margin: 0; }
+.ownerModalBackdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(10,30,25,.58); }
+.ownerPaymentModal { width: min(100%, 620px); max-height: min(90vh, 760px); overflow-y: auto; border-radius: 22px; background: var(--private-white); box-shadow: 0 30px 90px rgba(0,0,0,.25); }
+.ownerPaymentModal > header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; padding: 1.2rem; border-bottom: 1px solid var(--private-line); }
+.ownerPaymentModal h2 { margin: .15rem 0; color: var(--owner-green); font-family: Georgia, serif; font-size: 2rem; font-weight: 500; }
+.ownerPaymentModal header p:last-child { margin: .35rem 0 0; color: var(--private-muted); }
+.ownerPaymentModal header > button { min-width: 44px; min-height: 44px; border: 0; border-radius: 50%; color: var(--owner-green); background: var(--owner-mint); font-size: 1.5rem; }
+.ownerPaymentModal form { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; padding: 1.2rem; }
+.ownerPaymentModal label { display: grid; gap: .3rem; color: #37594f; font-size: .75rem; font-weight: 800; }
+.ownerPaymentModal input, .ownerPaymentModal select { min-width: 0; min-height: 44px; padding: .65rem; border: 1px solid var(--private-line); border-radius: 9px; background: #fff; }
+.ownerPaymentModal footer { display: flex; grid-column: 1 / -1; justify-content: end; gap: .6rem; margin-top: .4rem; }
+
 .employeeHoursReport { margin: 1.4rem 0 2rem; }
 .hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
 .hoursReportHeading h2 { margin: 0; color: var(--private-forest); font-family: Georgia, serif; font-size: clamp(2rem, 5vw, 3.8rem); font-weight: 500; line-height: 1; letter-spacing: -.035em; }
@@ -244,6 +356,16 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .employeeControls { grid-template-columns: 1fr 1fr; }
   .propertyMetrics { grid-template-columns: 1fr 1fr; }
   .propertyMetrics span:last-child { grid-column: 1 / -1; }
+  .ownerPeopleGrid { grid-template-columns: 1fr; }
+  .ownerPersonHeader { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .ownerPersonHeader > .privateTextButton { grid-column: 2 / -1; justify-self: start; }
+  .ownerCurrentBalance { min-width: 140px; }
+  .ownerKpiStrip { grid-template-columns: repeat(4, 1fr); }
+  .ownerKpiStrip article:nth-child(4) { border-right: 0; }
+  .ownerKpiStrip .ownerMinorKpi { min-height: 70px; }
+  .ownerOverview { grid-template-columns: 1fr; }
+  .ownerActivityPanel { grid-row: auto; }
+  .ownerDataToolbar { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -294,6 +416,54 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .employeeAccountStatus { align-items: start; flex-direction: column; }
   .accountActions { margin-left: 0; }
   .employeeInviteForm { grid-template-columns: 1fr; }
+  .ownerDirectoryHeader { align-items: end; }
+  .ownerDirectoryHeader p { display: none; }
+  .ownerDirectoryTotal { min-width: 0; }
+  .ownerDirectoryTotal strong { font-size: 1.85rem; }
+  .ownerTeamStrip { flex-wrap: nowrap; overflow-x: auto; }
+  .ownerPeopleGrid button { min-height: 88px; padding: .8rem; }
+  .ownerPersonHeader { grid-template-columns: auto minmax(0, 1fr); gap: .7rem; }
+  .ownerPersonHeader .ownerCurrentBalance { grid-column: 1 / -1; grid-row: 2; padding: .8rem; border-radius: 12px; text-align: left; background: var(--owner-green); }
+  .ownerPersonHeader .ownerCurrentBalance strong { color: #fff; font-size: 2rem; }
+  .ownerPersonHeader .ownerCurrentBalance span, .ownerPersonHeader .ownerCurrentBalance small { color: #c6d8d0; }
+  .ownerPersonHeader > .privateTextButton { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; text-align: center; }
+  .ownerIdentity .ownerAvatar { width: 42px; height: 42px; border-radius: 13px; }
+  .ownerIdentity h1 { font-size: 2.35rem; }
+  .ownerPeriodBar { margin: .7rem 0; }
+  .ownerPeriodBar > span:first-child { display: none; }
+  .ownerPeriodBar button { min-height: 44px; }
+  .ownerKpiStrip { grid-template-columns: 1fr 1fr; margin: .8rem 0; }
+  .ownerKpiStrip article { min-height: 88px; padding: .8rem; border-bottom: 1px solid var(--private-line); }
+  .ownerKpiStrip article:nth-child(even) { border-right: 0; }
+  .ownerKpiStrip article:nth-last-child(-n+2) { border-bottom: 0; }
+  .ownerKpiStrip strong { font-size: 1.55rem; }
+  .ownerKpiStrip .ownerBalanceKpi { grid-column: 1 / -1; grid-row: 1; min-height: 92px; border-right: 0; }
+  .ownerKpiStrip .ownerBalanceKpi strong { font-size: 2rem; }
+  .ownerTabs { margin: .8rem 0; }
+  .ownerTabs button { min-height: 48px; padding: .65rem .8rem; }
+  .ownerPanel { padding: .8rem; }
+  .ownerEntryRow { grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .7rem; align-items: start; padding: .8rem; }
+  .ownerEntryRow time { grid-column: 1 / -1; }
+  .ownerEntryRow > span { grid-column: 1; }
+  .ownerEntryRow .ownerEntryDuration { grid-column: 2; grid-row: 2; }
+  .ownerEntryRow > strong:last-child { grid-column: 2; grid-row: 3; }
+  .ownerPropertyChart > button { grid-template-columns: 105px minmax(0, 1fr); }
+  .ownerDataToolbar { grid-template-columns: 1fr 1fr; padding: .65rem; }
+  .ownerDataToolbar .ownerSearchField { grid-column: 1 / -1; }
+  .ownerPropertyGrid { grid-template-columns: 1fr; }
+  .ownerPaymentsHeader { align-items: stretch; flex-direction: column; }
+  .ownerPaymentsHeader .privatePrimaryAction { width: 100%; }
+  .ownerPaymentTotals { grid-template-columns: 1fr; }
+  .ownerPaymentTotals span { border-right: 0; border-bottom: 1px solid var(--private-line); }
+  .ownerPaymentTotals span:last-child { border-bottom: 0; }
+  .ownerPaymentRow { display: grid; grid-template-columns: 1fr auto; }
+  .ownerPaymentRow time { grid-column: 1 / -1; }
+  .ownerAccountPanel { grid-template-columns: 1fr; }
+  .ownerAccountPanel .accountActions { width: 100%; }
+  .ownerPaymentModal { align-self: end; max-height: 92vh; border-radius: 22px 22px 0 0; }
+  .ownerModalBackdrop { padding: 0; }
+  .ownerPaymentModal form { grid-template-columns: 1fr; }
+  .ownerPaymentModal footer { grid-column: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

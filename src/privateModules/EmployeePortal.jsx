@@ -265,7 +265,12 @@ export function OwnerTeamOverview() {
   const [entries, setEntries] = useState([]);
   const [payments, setPayments] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState(() => window.location.hash.match(/^#team\/([0-9a-f-]+)$/i)?.[1] || "");
-  const [filters, setFilters] = useState({ person: "", property: "", type: "", paymentStatus: "", start: "", end: "" });
+  const [tab, setTab] = useState("OVERVIEW");
+  const [period, setPeriod] = useState("CURRENT_MONTH");
+  const [customRange, setCustomRange] = useState({ start: "", end: "" });
+  const [filters, setFilters] = useState({ search: "", property: "", type: "", sort: "NEWEST" });
+  const [historyLimit, setHistoryLimit] = useState(12);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [payment, setPayment] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), kind: "WAGE_PAYMENT", note: "", reference: "" });
   const [accountForm, setAccountForm] = useState({ open: false, firstName: "", lastName: "", email: "" });
   const [accountState, setAccountState] = useState("");
@@ -312,13 +317,19 @@ export function OwnerTeamOverview() {
 
   const selectedProfile = profiles.find((item) => item.id === selectedProfileId);
   const selectedBalance = balances.find((item) => item.person_id === selectedProfileId);
-  const scopePersonId = selectedProfileId || filters.person;
-  const visibleEntries = entries.filter((item) => (!scopePersonId || item.person_id === scopePersonId)
-    && (!filters.property || propertyFilterKey(item) === filters.property)
+  const dateRange = ownerPeriodRange(period, customRange);
+  const personEntries = entries.filter((item) => item.person_id === selectedProfileId);
+  const personPayments = payments.filter((item) => item.person_id === selectedProfileId);
+  const periodEntries = personEntries.filter((item) => dateInRange(item.service_date, dateRange));
+  const periodPayments = personPayments.filter((item) => dateInRange(item.payment_date, dateRange));
+  const normalizedSearch = filters.search.trim().toLocaleLowerCase("fr");
+  const visibleEntries = periodEntries.filter((item) => (!filters.property || propertyFilterKey(item) === filters.property)
     && (!filters.type || item.service_type === filters.type)
-    && (!filters.start || item.service_date >= filters.start)
-    && (!filters.end || item.service_date <= filters.end));
-  const visiblePayments = payments.filter((item) => !scopePersonId || item.person_id === scopePersonId);
+    && (!normalizedSearch || [propertyLabel(item), serviceTypeLabel(item.service_type), item.service_date, formatDate(item.service_date), item.mission_description, item.remarks]
+      .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch)))
+    .sort((a, b) => filters.sort === "OLDEST" ? a.service_date.localeCompare(b.service_date) : b.service_date.localeCompare(a.service_date));
+  const visiblePayments = periodPayments.filter((item) => !normalizedSearch || [paymentTypeLabel(item.payment_kind), item.note, item.external_reference, item.payment_date, formatDate(item.payment_date)]
+    .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch));
   const reviewEntries = entries.filter((item) => ["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status));
   const teamTotals = balances.reduce((total, item) => ({
     hours: total.hours + Number(item.total_hours || 0),
@@ -327,14 +338,27 @@ export function OwnerTeamOverview() {
     paid: total.paid + Number(item.wage_payments_included || 0),
     balance: total.balance + Number(item.balance || 0),
   }), { hours: 0, linen: 0, due: 0, paid: 0, balance: 0 });
-  const directory = balances.filter((item) => (!filters.person || item.person_id === filters.person)
-    && (!filters.paymentStatus || (filters.paymentStatus === "OUTSTANDING" ? Number(item.balance) > 0 : Number(item.balance) <= 0)));
-  const ordinaryPayments = visiblePayments.filter((item) => item.payment_kind !== "LEGACY_ADJUSTMENT");
-  const adjustments = visiblePayments.filter((item) => item.payment_kind === "LEGACY_ADJUSTMENT"
-    || item.legacy_classification === "LEGACY_BALANCE_CORRECTION_ORIGIN_NOT_PROVEN");
+  const periodSummary = periodEntries.reduce((total, item) => ({
+    minutes: total.minutes + Number(item.minutes || 0),
+    linen: total.linen + Number(item.linen_pairs || 0),
+    due: total.due + Number(item.due_total_amount || 0),
+    other: total.other + Number(item.due_other || item.due_other_amount || item.due_purchase_amount || 0),
+  }), { minutes: 0, linen: 0, due: 0, other: 0 });
+  const paidInPeriod = periodPayments.filter((item) => item.payment_kind !== "EXPENSE_REIMBURSEMENT")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const groupedProperties = periodEntries.reduce((result, item) => {
+    const key = propertyLabel(item);
+    (result[key] ||= []).push(item);
+    return result;
+  }, {});
+  const latestPayment = [...personPayments].sort((a, b) => b.payment_date.localeCompare(a.payment_date))[0];
 
   function openProfile(id) {
     setAccountState("");
+    setTab("OVERVIEW");
+    setPeriod("CURRENT_MONTH");
+    setFilters({ search: "", property: "", type: "", sort: "NEWEST" });
+    setHistoryLimit(12);
     setSelectedProfileId(id);
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#team/${id}`);
   }
@@ -359,19 +383,7 @@ export function OwnerTeamOverview() {
     if (result.error) return setMessage(`Paiement non enregistré : ${result.error.message}`);
     setPayment((current) => ({ ...current, amount: "", note: "", reference: "" }));
     setMessage("Paiement enregistré dans le registre TEST. Aucun virement bancaire n’a été exécuté.");
-    await load();
-  }
-
-  async function decideProperty(entryId, decision) {
-    setMessage("");
-    const result = await supabase.rpc("tibaldo_app_resolve_property_mapping", {
-      target_entry_id: entryId,
-      owner_decision: decision,
-      decision_reason: "Décision Owner depuis la file de revue privée",
-      request_key: `owner-property:${entryId}:${decision}`,
-    });
-    if (result.error) return setMessage(`Décision non enregistrée : ${result.error.message}`);
-    setMessage("Décision logement enregistrée et auditée dans TEST.");
+    setPaymentModalOpen(false);
     await load();
   }
 
@@ -397,27 +409,60 @@ export function OwnerTeamOverview() {
     await load();
   }
 
-  return <main className="privatePage privateModuleScope ownerTeam" id="main-content">
-    <header className="employeeHero"><div><p className="privateEyebrow">ÉQUIPE · BÊTA PRIVÉE</p><h1>{selectedProfile ? selectedProfile.display_name : "Personnel & ménage."}</h1><p>Registre canonique des prestations, heures, linge, paiements et soldes calculés côté serveur.</p></div>{selectedProfile && <button className="privateTextButton" onClick={closeProfile}>← Vue globale</button>}</header>
+  const accountLabel = {
+    ACCOUNT_NOT_CREATED: "Compte non créé",
+    INVITED: "Invitation envoyée",
+    ACTIVE: "Compte actif",
+    DISABLED: "Compte désactivé",
+    STATUS_UNAVAILABLE: "État indisponible",
+  }[accountState] || "Vérification…";
+
+  if (!selectedProfile) return <main className="privatePage privateModuleScope ownerTeam ownerTeamV2" id="main-content">
+    <header className="ownerDirectoryHeader"><div><p className="privateEyebrow">PERSONNEL · BÊTA PRIVÉE</p><h1>Équipe</h1><p>Heures, paiements et soldes — une vue claire, sans perdre le détail.</p></div><div className="ownerDirectoryTotal"><span>Solde à régler</span><strong>{money(teamTotals.balance)}</strong></div></header>
     {message && <p className="privateInlineMessage">{message}</p>}
     {loading && <div className="privateLoadingCard" role="status">Chargement de l’équipe…</div>}
-    {!loading && !selectedProfile && <section className="privateMetricGrid teamSummary" aria-label="Synthèse équipe"><article><strong>{teamTotals.hours.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</strong><span>Total heures</span></article><article><strong>{teamTotals.linen}</strong><span>Total linge</span></article><article><strong>{money(teamTotals.due)}</strong><span>Total dû</span></article><article><strong>{money(teamTotals.paid)}</strong><span>Total payé</span></article><article className="metricAlert"><strong>{money(teamTotals.balance)}</strong><span>Solde global</span></article></section>}
-
-    {!loading && <section className="teamFilters" aria-label="Filtres"><select aria-label="Personne" value={filters.person} onChange={(e) => setFilters({ ...filters, person: e.target.value })}><option value="">Toutes les personnes</option>{profiles.map((item) => <option key={item.id} value={item.id}>{item.display_name}</option>)}</select><select aria-label="Logement" value={filters.property} onChange={(e) => setFilters({ ...filters, property: e.target.value })}><option value="">Tous les logements</option><option value="Fives">Fives</option><option value="Melezio">Melezio</option><option value="Gare">Gare</option><option value="Wattignies">Wattignies</option><option value="NO_PROPERTY_REQUIRED">Sans logement requis</option><option value="PROPERTY_REVIEW_REQUIRED">Logement à vérifier</option></select><select aria-label="Type de prestation" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">Tous les types</option><option value="HOUSEKEEPING">Ménage</option><option value="LAUNDRY">Linge</option><option value="PURCHASE">Achat</option><option value="MISC_SERVICE">Mission</option></select><select aria-label="Statut de paiement" value={filters.paymentStatus} onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}><option value="">Tous les soldes</option><option value="OUTSTANDING">Solde à payer</option><option value="SETTLED">Soldé</option></select><input aria-label="Début" type="date" value={filters.start} onChange={(e) => setFilters({ ...filters, start: e.target.value })}/><input aria-label="Fin" type="date" value={filters.end} onChange={(e) => setFilters({ ...filters, end: e.target.value })}/></section>}
-
-    {!loading && !selectedProfile && <section className="teamBalanceDirectory">{directory.map((item) => <button key={item.person_id} onClick={() => openProfile(item.person_id)}><span><strong>{item.display_name}</strong><small>{Number(item.total_hours).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h · {item.linen_pairs} jeux de linge</small><small>{money(item.due_work)} travail · {money(item.due_laundry)} linge · {money(item.due_other)} autres</small></span><span><small>Payé {money(item.wage_payments_included)}</small><strong>{money(item.balance)}</strong></span></button>)}</section>}
-
-    {!loading && selectedBalance && <section aria-labelledby="synthese-title"><h2 id="synthese-title" className="sectionTitle">Synthèse</h2><div className="employeeAccountStatus"><span><b>Compte Personnel</b><small>{accountState || "Vérification…"}</small></span><strong>{accountState === "ACCOUNT_NOT_CREATED" ? "PRÊT À INVITER" : accountState === "DISABLED" ? "ACCÈS COUPÉ" : accountState === "STATUS_UNAVAILABLE" ? "ÉTAT INDISPONIBLE" : "COMPTE LIÉ"}</strong><div className="accountActions">{accountState === "ACCOUNT_NOT_CREATED" ? <button className="privateTextButton" onClick={() => setAccountForm((current) => ({ ...current, open: !current.open }))}>Inviter</button> : ["ACTIVE", "INVITED"].includes(accountState) ? <><button className="privateTextButton" onClick={() => manageEmployeeAccount("recovery")}>Envoyer un lien de récupération</button><button className="privateTextButton dangerAccountAction" onClick={() => manageEmployeeAccount("disable")}>Désactiver l’accès</button></> : null}</div></div>{accountForm.open && accountState === "ACCOUNT_NOT_CREATED" && <form className="employeeInviteForm" onSubmit={(event) => { event.preventDefault(); void manageEmployeeAccount("invite"); }}><p>Aucun mot de passe n’est demandé : la salariée le choisira depuis son invitation.</p><label>Prénom<input required value={accountForm.firstName} onChange={(event) => setAccountForm({ ...accountForm, firstName: event.target.value })} /></label><label>Nom<input required value={accountForm.lastName} onChange={(event) => setAccountForm({ ...accountForm, lastName: event.target.value })} /></label><label>Email<input required type="email" value={accountForm.email} onChange={(event) => setAccountForm({ ...accountForm, email: event.target.value })} /></label><button className="privatePrimaryAction" type="submit">Envoyer l’invitation</button></form>}<BalanceCards balance={selectedBalance} /></section>}
-
-    {!loading && selectedProfile && <PersonOperationalDetail entries={visibleEntries} payments={ordinaryPayments} adjustments={adjustments} balance={selectedBalance} />}
-
-    {!loading && !selectedProfile && <section className="ownerTeamGrid"><article><h2>Prestations ({visibleEntries.length})</h2>{visibleEntries.map((item) => <EntryRow item={item} key={item.id} />)}</article><article><h2>Paiements ({ordinaryPayments.length})</h2>{ordinaryPayments.map((item) => <PaymentRow item={item} key={item.id} />)}</article></section>}
-
-    {!loading && !selectedProfile && <section className="propertyReviewQueue"><div><p className="privateEyebrow">OWNER ONLY</p><h2>Logements à vérifier ({reviewEntries.length})</h2><p>« Sans logement requis » reste un état canonique distinct et n’apparaît pas ici.</p></div>{reviewEntries.length === 0 && <div className="privateEmptyCard"><h3>Aucune ligne en attente.</h3><p>Les décisions Gare/Lily et l’examen Tibado House sont entièrement résolus.</p></div>}{reviewEntries.map((item) => <article className="reviewDecisionCard" key={item.id}><div><strong>{profiles.find((profile) => profile.id === item.person_id)?.display_name || item.staff_name}</strong><span>{item.service_date} · {item.service_type} · {formatDuration(item.minutes)}</span><small>Brut : {item.raw_property_primary || "—"} / {item.raw_property_secondary || "—"}</small><p>{item.remarks || item.mission_description || "Aucun indice textuel supplémentaire."}</p><code>{item.source_record_id}</code></div><div className="reviewActions">{["FIVES","MELEZIO","GARE","WATTIGNIES","NO_PROPERTY_REQUIRED"].map((decision) => <button key={decision} onClick={() => decideProperty(item.id, decision)}>{decision === "NO_PROPERTY_REQUIRED" ? "Sans logement requis" : `Assigner ${decision[0]}${decision.slice(1).toLowerCase()}`}</button>)}</div></article>)}</section>}
-
-    {!loading && selectedProfile && <form className="paymentAction" onSubmit={recordPayment}><div><p className="privateEyebrow">ACTION OWNER · TEST UNIQUEMENT</p><h2>Enregistrer un paiement effectué</h2><p>Cette action ajoute une écriture au registre. Elle ne déclenche aucun paiement réel.</p></div><label>Montant (€)<input required step="0.01" type="number" value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })}/></label><label>Date<input required type="date" value={payment.date} onChange={(e) => setPayment({ ...payment, date: e.target.value })}/></label><label>Nature<select value={payment.kind} onChange={(e) => setPayment({ ...payment, kind: e.target.value })}><option value="WAGE_PAYMENT">Paiement salaire</option><option value="EXPENSE_REIMBURSEMENT">Remboursement de frais</option><option value="LEGACY_ADJUSTMENT">Ajustement historique</option><option value="OTHER_REVIEWED">Autre écriture vérifiée</option></select></label><label>Note<input value={payment.note} onChange={(e) => setPayment({ ...payment, note: e.target.value })}/></label><label>Référence<input value={payment.reference} onChange={(e) => setPayment({ ...payment, reference: e.target.value })}/></label><button className="privatePrimaryAction" type="submit">Enregistrer</button></form>}
-    {!loading && profiles.length === 0 && <div className="privateEmptyCard"><h2>Aucun compte Employé réel créé.</h2><p>Gaëlle, Jennifer et Rachida ne seront invitées qu’après un GO Owner distinct.</p></div>}
+    {!loading && <><section className="ownerTeamStrip" aria-label="Synthèse équipe"><span><b>{teamTotals.hours.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</b> heures</span><span><b>{money(teamTotals.due)}</b> dû</span><span><b>{money(teamTotals.paid)}</b> payé</span><span><b>{teamTotals.linen}</b> linge</span></section><section className="ownerPeopleGrid">{balances.map((item) => <button key={item.person_id} onClick={() => openProfile(item.person_id)}><span className="ownerAvatar" aria-hidden="true">{item.display_name.slice(0, 1)}</span><span><strong>{item.display_name}</strong><small>{Number(item.total_hours).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h · {item.linen_pairs} linge</small></span><span className="ownerPersonBalance"><small>À régler</small><strong>{money(item.balance)}</strong></span></button>)}</section><section className="ownerReviewSummary"><span><b>Logements à vérifier</b><small>{reviewEntries.length ? "Une décision Owner est attendue." : "Tout est classé."}</small></span><strong>{reviewEntries.length}</strong></section></>}
   </main>;
+
+  return <main className="privatePage privateModuleScope ownerTeam ownerTeamV2" id="main-content">
+    <header className="ownerPersonHeader"><button className="ownerBackButton" onClick={closeProfile}>← Équipe</button><div className="ownerIdentity"><span className="ownerAvatar" aria-hidden="true">{selectedProfile.display_name.slice(0, 1)}</span><div><p className="privateEyebrow">PERSONNEL</p><h1>{selectedProfile.display_name}</h1><p><span className={`accountStatusDot ${accountState.toLowerCase()}`}></span>{accountLabel}</p></div></div><div className="ownerCurrentBalance"><span>Solde actuel</span><strong>{money(selectedBalance?.balance)}</strong><small>sur tout l’historique</small></div><button className="privateTextButton" onClick={() => setTab("ACCOUNT")}>Gérer le compte</button></header>
+    {message && <p className="privateInlineMessage" role="status">{message}</p>}
+    <section className="ownerPeriodBar" aria-label="Période"><span>Activité</span>{[["CURRENT_MONTH","Ce mois"],["PREVIOUS_MONTH","Mois dernier"],["THREE_MONTHS","3 mois"],["YEAR","Année"],["ALL","Tout"]].map(([value,label]) => <button key={value} className={period === value ? "active" : ""} aria-pressed={period === value} onClick={() => { setPeriod(value); setHistoryLimit(12); }}>{label}</button>)}<button className={period === "CUSTOM" ? "active" : ""} aria-pressed={period === "CUSTOM"} onClick={() => setPeriod("CUSTOM")}>Dates</button>{period === "CUSTOM" && <span className="ownerCustomDates"><input aria-label="Date de début" type="date" value={customRange.start} onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}/><input aria-label="Date de fin" type="date" value={customRange.end} onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}/></span>}</section>
+    <section className="ownerKpiStrip" aria-label="Indicateurs de période"><article><span>Heures</span><strong>{formatDuration(periodSummary.minutes)}</strong></article><article><span>Dû sur période</span><strong>{money(periodSummary.due)}</strong></article><article><span>Payé sur période</span><strong>{money(paidInPeriod)}</strong></article><article className="ownerBalanceKpi"><span>Solde actuel</span><strong>{money(selectedBalance?.balance)}</strong><small>historique</small></article><article className="ownerMinorKpi"><span>Linge</span><strong>{periodSummary.linen}</strong></article><article className="ownerMinorKpi"><span>Autres</span><strong>{money(periodSummary.other)}</strong></article></section>
+    <nav className="ownerTabs" role="tablist" aria-label="Dossier de la salariée">{[["OVERVIEW","Vue d’ensemble"],["ENTRIES","Prestations"],["PROPERTIES","Logements"],["PAYMENTS","Paiements"],["ACCOUNT","Compte"]].map(([value,label]) => <button key={value} role="tab" aria-selected={tab === value} className={tab === value ? "active" : ""} onClick={() => { setTab(value); setHistoryLimit(12); }}>{label}</button>)}</nav>
+
+    {tab === "OVERVIEW" && <section className="ownerOverview" role="tabpanel"><article className="ownerPanel ownerActivityPanel"><div className="ownerPanelHeading"><div><p className="privateEyebrow">DERNIÈRE ACTIVITÉ</p><h2>{visibleEntries.length} prestation{visibleEntries.length > 1 ? "s" : ""} sur la période</h2></div><button className="privateTextButton" onClick={() => setTab("ENTRIES")}>Tout voir</button></div><div className="ownerCompactList">{visibleEntries.slice(0, 6).map((item) => <EntryRow item={item} key={item.id}/>)}</div>{visibleEntries.length === 0 && <EmptyPeriod />}</article><article className="ownerPanel ownerPropertyChart"><div className="ownerPanelHeading"><div><p className="privateEyebrow">HEURES PAR LOGEMENT</p><h2>Répartition</h2></div></div>{Object.entries(groupedProperties).sort((a,b) => b[1].reduce((s,i)=>s+Number(i.minutes||0),0)-a[1].reduce((s,i)=>s+Number(i.minutes||0),0)).map(([name,items]) => { const minutes=items.reduce((sum,item)=>sum+Number(item.minutes||0),0); return <button key={name} onClick={() => { setFilters({ ...filters, property: propertyFilterKey(items[0]) }); setTab("ENTRIES"); }}><span>{name}<small>{formatDuration(minutes)}</small></span><i><b style={{ width: `${periodSummary.minutes ? Math.max(5,(minutes / periodSummary.minutes) * 100) : 0}%` }}></b></i></button>; })}</article><article className="ownerPanel ownerPaymentSnapshot"><p className="privateEyebrow">PAIEMENTS</p><h2>{latestPayment ? money(latestPayment.amount) : "Aucun"}</h2><p>{latestPayment ? `Dernier paiement · ${formatDate(latestPayment.payment_date)}` : "Aucun paiement enregistré"}</p><button className="privateTextButton" onClick={() => setTab("PAYMENTS")}>Voir les paiements</button></article></section>}
+
+    {tab === "ENTRIES" && <section role="tabpanel"><OwnerDataToolbar filters={filters} setFilters={setFilters} entries={periodEntries}/><div className="ownerEntriesTable">{visibleEntries.slice(0, historyLimit).map((item) => <EntryRow item={item} key={item.id}/>)}</div>{visibleEntries.length === 0 && <EmptyPeriod />}{visibleEntries.length > historyLimit && <button className="ownerLoadMore" onClick={() => setHistoryLimit((value) => value + 12)}>Afficher 12 de plus <small>{visibleEntries.length - historyLimit} restantes</small></button>}</section>}
+
+    {tab === "PROPERTIES" && <section className="ownerPropertyGrid" role="tabpanel">{Object.entries(groupedProperties).map(([name,items]) => <button key={name} className={name === "Sans logement requis" ? "noPropertyGroup" : ""} onClick={() => { setFilters({ ...filters, property: propertyFilterKey(items[0]) }); setTab("ENTRIES"); }}><span className="ownerPropertyIcon" aria-hidden="true">{name === "Sans logement requis" ? "◇" : "⌂"}</span><div><p className="privateEyebrow">{name === "Sans logement requis" ? "CONTEXTE" : "LOGEMENT"}</p><h2>{name}</h2><span>{items.length} intervention{items.length > 1 ? "s" : ""}</span></div><dl><div><dt>Heures</dt><dd>{formatDuration(items.reduce((sum,item)=>sum+Number(item.minutes||0),0))}</dd></div><div><dt>Montant</dt><dd>{money(items.reduce((sum,item)=>sum+Number(item.due_total_amount||0),0))}</dd></div><div><dt>Linge</dt><dd>{items.reduce((sum,item)=>sum+Number(item.linen_pairs||0),0)}</dd></div></dl><span className="ownerCardArrow">→</span></button>)}{Object.keys(groupedProperties).length === 0 && <EmptyPeriod />}</section>}
+
+    {tab === "PAYMENTS" && <section role="tabpanel"><div className="ownerPaymentsHeader"><div><p className="privateEyebrow">HISTORIQUE FINANCIER</p><h2>Paiements</h2><p>Le solde reste calculé par le registre canonique.</p></div><button className="privatePrimaryAction" onClick={() => setPaymentModalOpen(true)}>+ Enregistrer un paiement</button></div><section className="ownerPaymentTotals"><span><small>Total dû</small><b>{money(selectedBalance?.total_due)}</b></span><span><small>Total payé</small><b>{money(selectedBalance?.wage_payments_included)}</b></span><span><small>Solde actuel</small><b>{money(selectedBalance?.balance)}</b></span></section><label className="ownerPaymentSearch">Rechercher dans les paiements<input type="search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Note, référence, date…"/></label><div className="ownerPaymentList">{visiblePayments.map((item) => <PaymentRow item={item} key={item.id}/>)}</div>{visiblePayments.length === 0 && <EmptyPeriod />}</section>}
+
+    {tab === "ACCOUNT" && <section className="ownerAccountPanel" role="tabpanel"><div><p className="privateEyebrow">ACCÈS PERSONNEL</p><h2>{accountLabel}</h2><p>La salariée choisit toujours elle-même son mot de passe.</p></div><div className="accountActions">{accountState === "ACCOUNT_NOT_CREATED" ? <button className="privatePrimaryAction" onClick={() => setAccountForm((current) => ({ ...current, open: !current.open }))}>Préparer l’invitation</button> : ["ACTIVE", "INVITED"].includes(accountState) ? <><button className="privateTextButton" onClick={() => manageEmployeeAccount("recovery")}>Envoyer un lien de récupération</button><button className="privateTextButton dangerAccountAction" onClick={() => manageEmployeeAccount("disable")}>Désactiver l’accès</button></> : null}</div>{accountForm.open && accountState === "ACCOUNT_NOT_CREATED" && <form className="employeeInviteForm" onSubmit={(event) => { event.preventDefault(); void manageEmployeeAccount("invite"); }}><p>Aucun mot de passe n’est demandé. L’envoi créera le compte réel : ne validez qu’après autorisation.</p><label>Prénom<input required value={accountForm.firstName} onChange={(event) => setAccountForm({ ...accountForm, firstName: event.target.value })}/></label><label>Nom<input required value={accountForm.lastName} onChange={(event) => setAccountForm({ ...accountForm, lastName: event.target.value })}/></label><label>Email<input required type="email" value={accountForm.email} onChange={(event) => setAccountForm({ ...accountForm, email: event.target.value })}/></label><button className="privatePrimaryAction" type="submit">Envoyer l’invitation</button></form>}</section>}
+
+    {paymentModalOpen && <div className="ownerModalBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPaymentModalOpen(false); }}><section className="ownerPaymentModal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title"><header><div><p className="privateEyebrow">ACTION OWNER</p><h2 id="payment-modal-title">Enregistrer un paiement</h2><p>Enregistre un paiement déjà effectué. Aucun virement bancaire n’est initié.</p></div><button aria-label="Fermer" onClick={() => setPaymentModalOpen(false)}>×</button></header><form onSubmit={recordPayment}><label>Montant (€)<input autoFocus required step="0.01" type="number" value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })}/></label><label>Date<input required type="date" value={payment.date} onChange={(e) => setPayment({ ...payment, date: e.target.value })}/></label><label>Nature<select value={payment.kind} onChange={(e) => setPayment({ ...payment, kind: e.target.value })}><option value="WAGE_PAYMENT">Paiement</option><option value="EXPENSE_REIMBURSEMENT">Remboursement de frais</option><option value="LEGACY_ADJUSTMENT">Ajustement historique</option><option value="OTHER_REVIEWED">Autre écriture vérifiée</option></select></label><label>Note<input value={payment.note} onChange={(e) => setPayment({ ...payment, note: e.target.value })}/></label><label>Référence<input value={payment.reference} onChange={(e) => setPayment({ ...payment, reference: e.target.value })}/></label><footer><button type="button" className="privateTextButton" onClick={() => setPaymentModalOpen(false)}>Annuler</button><button className="privatePrimaryAction" type="submit">Enregistrer</button></footer></form></section></div>}
+  </main>;
+}
+
+function OwnerDataToolbar({ filters, setFilters, entries }) {
+  const properties = [...new Map(entries.map((item) => [propertyFilterKey(item), propertyLabel(item)])).entries()];
+  return <section className="ownerDataToolbar" aria-label="Recherche et filtres"><label className="ownerSearchField"><span>Rechercher</span><input type="search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Logement, date, type…"/></label><label><span>Logement</span><select value={filters.property} onChange={(e) => setFilters({ ...filters, property: e.target.value })}><option value="">Tous</option>{properties.map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Type</span><select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">Tous</option><option value="HOUSEKEEPING">Ménage</option><option value="LAUNDRY">Linge</option><option value="MISC_SERVICE">Autre prestation</option><option value="PURCHASE">Achat</option></select></label><label><span>Tri</span><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="NEWEST">Plus récent</option><option value="OLDEST">Plus ancien</option></select></label></section>;
+}
+
+function ownerPeriodRange(period, customRange) {
+  const now = new Date();
+  if (period === "ALL") return { start: null, end: null };
+  if (period === "CUSTOM") return { start: customRange.start || null, end: customRange.end || null };
+  if (period === "YEAR") return { start: `${now.getFullYear()}-01-01`, end: `${now.getFullYear()}-12-31` };
+  const offset = period === "PREVIOUS_MONTH" ? -1 : period === "THREE_MONTHS" ? -2 : 0;
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const end = period === "PREVIOUS_MONTH" ? new Date(now.getFullYear(), now.getMonth(), 0) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) };
+}
+
+function dateInRange(value, range) {
+  return (!range.start || value >= range.start) && (!range.end || value <= range.end);
 }
 
 function propertyFilterKey(item) {
@@ -433,31 +478,22 @@ function propertyLabel(item) {
 }
 
 function EntryRow({ item }) {
-  return <div className="teamRow"><span>{propertyLabel(item)}{["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status) && <em className="reviewPill">À vérifier</em>}<small>{new Date(`${item.service_date}T12:00:00`).toLocaleDateString("fr-FR")} · {item.service_type} · {item.linen_pairs || 0} linge</small></span><strong>{formatDuration(item.minutes)}<small>{money(item.due_total_amount)}</small></strong></div>;
+  return <div className="teamRow ownerEntryRow"><time dateTime={item.service_date}>{formatDate(item.service_date)}</time><span><strong>{propertyLabel(item)}</strong>{["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status) && <em className="reviewPill">À vérifier</em>}<small>{serviceTypeLabel(item.service_type)}{Number(item.linen_pairs || 0) ? ` · ${item.linen_pairs} linge` : ""}</small></span><strong className="ownerEntryDuration">{formatDuration(item.minutes)}</strong><strong>{money(item.due_total_amount)}</strong></div>;
 }
 
 function PaymentRow({ item }) {
-  return <div className="teamRow"><span>{item.note || item.payment_kind}<small>{new Date(`${item.payment_date}T12:00:00`).toLocaleDateString("fr-FR")} · {item.payment_kind}</small></span><strong>{money(item.amount)}</strong></div>;
+  const reimbursement = item.payment_kind === "EXPENSE_REIMBURSEMENT";
+  return <div className={`teamRow ownerPaymentRow ${reimbursement ? "reimbursement" : ""}`}><time dateTime={item.payment_date}>{formatDate(item.payment_date)}</time><span><strong>{paymentTypeLabel(item.payment_kind)}</strong><small>{item.note || "Sans note"}{item.external_reference ? ` · Réf. ${item.external_reference}` : ""}</small>{reimbursement && <em>Hors solde salaire</em>}</span><strong>{money(item.amount)}</strong></div>;
 }
 
-function PersonOperationalDetail({ entries, payments, adjustments, balance }) {
-  const housekeeping = entries.filter((item) => item.service_type === "HOUSEKEEPING");
-  const laundry = entries.filter((item) => item.service_type === "LAUNDRY" || Number(item.linen_pairs) > 0);
-  const other = entries.filter((item) => !["HOUSEKEEPING", "LAUNDRY"].includes(item.service_type));
-  return <section className="personOperationalDetail">
-    <article><h2>Prestations</h2>{housekeeping.map((item) => <EntryRow item={item} key={item.id} />)}</article>
-    <article><h2>Linge</h2>{laundry.map((item) => <EntryRow item={item} key={item.id} />)}</article>
-    <article><h2>Autres</h2>{other.map((item) => <EntryRow item={item} key={item.id} />)}</article>
-    <article><h2>Paiements</h2>{payments.map((item) => <PaymentRow item={item} key={item.id} />)}</article>
-    <article className="adjustmentPanel"><h2>Ajustements</h2>{adjustments.length === 0 && <p>Aucun ajustement historique.</p>}{adjustments.map((item) => <div className="adjustmentRow" key={item.id}><div><span className="reviewPill">Origine métier non démontrée</span><h3>Ajustement historique</h3><p>Contre-écriture créée le 03/08/2026 afin de neutraliser un écart historique de 91,50 €. Origine métier non démontrée.</p><small>{item.payment_date} · {item.note}</small></div><strong>{money(item.amount)}</strong></div>)}</article>
-    {balance && <article><h2>Solde</h2><p>Total dû {money(balance.total_due)} · payé inclus {money(balance.wage_payments_included)}.</p><strong className="detailBalance">{money(balance.balance)} restant</strong></article>}
-  </section>;
+function serviceTypeLabel(value) {
+  return { HOUSEKEEPING: "Ménage", LAUNDRY: "Linge", MISC_SERVICE: "Autre prestation", PURCHASE: "Achat" }[value] || "Prestation";
 }
 
 function normalizeEntries(entries) {
   return entries.map((item) => ({ ...item, occurred_at: item.source_submitted_at || `${item.service_date}T12:00:00` }));
 }
 
-function BalanceCards({ balance, personal = false }) {
-  return <section className="privateMetricGrid balanceMetricGrid" aria-label={personal ? "Mon solde" : "Solde du profil"}><article><strong>{money(balance.total_due)}</strong><span>Total dû</span></article><article><strong>{money(balance.wage_payments_included)}</strong><span>Paiements inclus</span></article><article className="metricAlert"><strong>{money(balance.balance)}</strong><span>Reste à payer</span></article><article><strong>{Number(balance.total_hours).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</strong><span>{balance.linen_pairs} jeux de linge</span></article></section>;
+function paymentTypeLabel(value) {
+  return { WAGE_PAYMENT: "Paiement", EXPENSE_REIMBURSEMENT: "Remboursement de frais", LEGACY_ADJUSTMENT: "Ajustement historique", OTHER_REVIEWED: "Autre écriture vérifiée" }[value] || "Paiement";
 }
