@@ -469,3 +469,11 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; }
 }
+.sourcePropertyContext {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted, #667085);
+  font-size: 0.78rem;
+  font-style: normal;
+  line-height: 1.35;
+}

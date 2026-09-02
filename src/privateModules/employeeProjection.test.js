@@ -4,13 +4,43 @@ import {
   calendarDayKey,
   currentEmployeePeriods,
   employeeHoursSummary,
+  entryPropertyPresentation,
   formatDuration,
   groupInterventionsByDay,
   minutesInPeriod,
   recordedTimeLabel,
   reportPeriod,
+  serviceDisplayLabel,
+  serviceSemanticKey,
+  compareEntriesNewest,
   workspaceForRole,
 } from "./employeeProjection.js";
+
+test("safe semantic subtype distinguishes service client without renaming other misc work", () => {
+  assert.equal(serviceSemanticKey({ service_type: "MISC_SERVICE", semantic_subtype: "SERVICE_CLIENT" }), "SERVICE_CLIENT");
+  assert.equal(serviceDisplayLabel({ service_type: "MISC_SERVICE", semantic_subtype: "SERVICE_CLIENT" }), "Service client");
+  assert.equal(serviceDisplayLabel({ service_type: "MISC_SERVICE" }), "Autre prestation");
+  assert.equal(serviceDisplayLabel({ service_type: "HOUSEKEEPING" }), "Ménage");
+});
+
+test("safe source property context stays secondary to canonical property", () => {
+  assert.deepEqual(entryPropertyPresentation({ mapping_status: "NO_PROPERTY_REQUIRED", source_property_context: "Tibado House" }), {
+    key: "SOURCE:Tibado House", label: "Tibado House", context: "Sans logement canonique requis",
+  });
+  assert.deepEqual(entryPropertyPresentation({ property: "Fives", source_property_context: "Tibado House" }), {
+    key: "Fives", label: "Fives", context: "",
+  });
+  assert.equal(entryPropertyPresentation({ mapping_status: "NO_PROPERTY_REQUIRED" }).label, "Sans logement requis");
+});
+
+test("entry ordering uses submission time only as a deterministic tie-breaker", () => {
+  const rows = [
+    { id: "a", service_date: "2026-09-01", source_submitted_at: "2026-09-01T14:16:49Z" },
+    { id: "b", service_date: "2026-09-01", source_submitted_at: "2026-09-01T14:18:37Z" },
+    { id: "c", service_date: "2026-08-31", source_submitted_at: "2026-09-02T09:00:00Z" },
+  ].sort(compareEntriesNewest);
+  assert.deepEqual(rows.map((item) => item.id), ["b", "a", "c"]);
+});
 
 test("employee durations are calculated from the existing filtered projection", () => {
   const entries = [

@@ -1,5 +1,38 @@
 export const EMPLOYEE_TIME_ZONE = "Europe/Paris";
 
+const SERVICE_LABELS = {
+  HOUSEKEEPING: "Ménage",
+  LAUNDRY: "Linge",
+  MISC_SERVICE: "Autre prestation",
+  PURCHASE: "Achat",
+  SERVICE_CLIENT: "Service client",
+};
+
+export function serviceSemanticKey(item = {}) {
+  return item.semantic_subtype === "SERVICE_CLIENT" ? "SERVICE_CLIENT" : item.service_type;
+}
+
+export function serviceDisplayLabel(item = {}) {
+  return SERVICE_LABELS[serviceSemanticKey(item)] || "Prestation";
+}
+
+export function entryPropertyPresentation(item = {}) {
+  if (["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status)) {
+    return { key: "PROPERTY_REVIEW_REQUIRED", label: "Logement à vérifier", context: "" };
+  }
+  if (item.property) return { key: item.property, label: item.property, context: "" };
+  if (item.source_property_context) {
+    return { key: `SOURCE:${item.source_property_context}`, label: item.source_property_context, context: "Sans logement canonique requis" };
+  }
+  return { key: "NO_PROPERTY_REQUIRED", label: "Sans logement requis", context: "" };
+}
+
+export function compareEntriesNewest(left, right) {
+  return String(right.service_date || "").localeCompare(String(left.service_date || ""))
+    || String(right.source_submitted_at || "").localeCompare(String(left.source_submitted_at || ""))
+    || String(right.id || "").localeCompare(String(left.id || ""));
+}
+
 const calendarFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: EMPLOYEE_TIME_ZONE,
   year: "numeric",

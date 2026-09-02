@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import {
   employeeHoursSummary,
+  entryPropertyPresentation,
   formatDuration,
   groupInterventionsByDay,
   recordedTimeLabel,
   reportPeriod,
+  serviceDisplayLabel,
+  serviceSemanticKey,
+  compareEntriesNewest,
 } from "./employeeProjection";
 
 const money = (value = 0) => new Intl.NumberFormat("fr-FR", {
@@ -184,22 +188,23 @@ export function EmployeePortal({ session }) {
   const entries = portal?.entries || [];
   const payments = portal?.payments || [];
   const normalizedSearch = search.trim().toLocaleLowerCase("fr");
-  const properties = [...new Set(entries.map((item) => item.property))].sort();
-  const serviceTypes = [...new Set(entries.map((item) => item.service_type).filter(Boolean))].sort();
-  const visibleEntries = entries.filter((item) => (!property || item.property === property)
-    && (!serviceType || item.service_type === serviceType)
+  const properties = [...new Map(entries.map((item) => { const presentation = entryPropertyPresentation(item); return [presentation.key, presentation.label]; })).entries()];
+  const serviceTypes = [...new Set(entries.map(serviceSemanticKey).filter(Boolean))].sort();
+  const visibleEntries = entries.filter((item) => (!property || entryPropertyPresentation(item).key === property)
+    && (!serviceType || serviceSemanticKey(item) === serviceType)
     && (!withLinen || Number(item.linen_pairs || 0) > 0)
     && (!withOther || Number(item.due_other || 0) > 0 || Boolean(item.mission))
-    && (!normalizedSearch || [item.property, item.service_type, item.mission, item.remarks, item.service_date, formatDate(item.service_date)]
+    && (!normalizedSearch || [entryPropertyPresentation(item).label, entryPropertyPresentation(item).context, serviceDisplayLabel(item), item.mission, item.remarks, item.service_date, formatDate(item.service_date)]
       .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch)));
   const grouped = visibleEntries.reduce((result, item) => {
-    (result[item.property] ||= []).push(item);
+    const label = entryPropertyPresentation(item).label;
+    (result[label] ||= []).push(item);
     return result;
   }, {});
   const history = [
     ...visibleEntries.map((item) => ({ date: item.service_date, kind: "entry", item })),
     ...payments.map((item) => ({ date: item.payment_date, kind: "payment", item })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  ].sort((a, b) => b.date.localeCompare(a.date) || (a.kind === "entry" && b.kind === "entry" ? compareEntriesNewest(a.item, b.item) : 0));
   const summary = portal?.period_summary;
   const balance = portal?.balance;
 
@@ -224,8 +229,8 @@ export function EmployeePortal({ session }) {
       <section className="employeeControls" aria-label="Période et recherche">
         <label>Période<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="CURRENT_WEEK">Cette semaine</option><option value="CURRENT_MONTH">Ce mois</option><option value="PREVIOUS_MONTH">Mois précédent</option><option value="ALL">Tout l’historique</option><option value="CUSTOM">Personnalisé</option></select></label>
         <label>Rechercher<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Logement, mission, remarque…" /></label>
-        <label>Logement<select value={property} onChange={(event) => setProperty(event.target.value)}><option value="">Tous</option>{properties.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option value={item} key={item}>{serviceTypeLabel(item)}</option>)}</select></label>
+        <label>Logement<select value={property} onChange={(event) => setProperty(event.target.value)}><option value="">Tous</option>{properties.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <label>Type<select value={serviceType} onChange={(event) => setServiceType(event.target.value)}><option value="">Tous</option>{serviceTypes.map((item) => <option value={item} key={item}>{serviceDisplayLabel({ service_type: item })}</option>)}</select></label>
         {period === "CUSTOM" && <><label>Du<input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label><label>Au<input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label></>}
         <label className="employeeCheck"><input type="checkbox" checked={withLinen} onChange={(event) => setWithLinen(event.target.checked)} /> Avec linge</label>
         <label className="employeeCheck"><input type="checkbox" checked={withOther} onChange={(event) => setWithOther(event.target.checked)} /> Autres / achats</label>
@@ -241,7 +246,7 @@ export function EmployeePortal({ session }) {
 
       {!loading && view === "PAYMENTS" && <section className="employeePayments"><section className="privateMetricGrid balanceMetricGrid"><article><strong>{money(balance.total_due)}</strong><span>Total dû</span></article><article><strong>{money(balance.paid_and_adjustments)}</strong><span>Payé et ajustements</span></article><article className="metricAlert"><strong>{money(balance.current)}</strong><span>Reste à payer</span></article><article><strong>{money(balance.excluded_reimbursements)}</strong><span>Remboursements hors salaire</span></article></section><div className="employeeHistoryList">{payments.map((item, index) => <div className={item.kind === "LEGACY_ADJUSTMENT" ? "employeeAdjustment" : ""} key={`${item.payment_date}-${index}`}><span><b>{item.label}</b><small>{formatDate(item.payment_date)}{item.note ? ` · ${item.note}` : ""}</small></span><strong>{money(item.amount)}</strong></div>)}{payments.length === 0 && <EmptyPeriod />}</div></section>}
 
-      {!loading && view === "HISTORY" && <section className="employeeHistoryList">{history.map(({ date, kind, item }, index) => <div key={`${date}-${kind}-${index}`}><span><b>{kind === "entry" ? item.property : item.label}</b><small>{formatDate(date)} · {kind === "entry" ? `${serviceTypeLabel(item.service_type)} · ${formatDuration(item.minutes)}` : (item.note || "Paiement")}</small></span><strong>{money(kind === "entry" ? item.total_due : item.amount)}</strong></div>)}{history.length === 0 && <EmptyPeriod />}</section>}
+      {!loading && view === "HISTORY" && <section className="employeeHistoryList">{history.map(({ date, kind, item }, index) => <div key={`${date}-${kind}-${index}`}><span><b>{kind === "entry" ? entryPropertyPresentation(item).label : item.label}</b><small>{formatDate(date)} · {kind === "entry" ? `${serviceDisplayLabel(item)} · ${formatDuration(item.minutes)}` : (item.note || "Paiement")}</small></span><strong>{money(kind === "entry" ? item.total_due : item.amount)}</strong></div>)}{history.length === 0 && <EmptyPeriod />}</section>}
     </main>
   );
 }
@@ -256,7 +261,7 @@ function EmptyPeriod() {
 
 function EntryList({ entries }) {
   if (entries.length === 0) return <EmptyPeriod />;
-  return <section className="employeeCards">{entries.map((item, index) => <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${item.property}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{serviceTypeLabel(item.service_type)}</span><h2>{item.property}</h2><p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{Number(item.due_other || 0) > 0 && <p>Autre mission / achat : {money(item.due_other)}</p>}{item.mission && <p>{item.mission}</p>}{item.remarks && <details><summary>Voir la remarque</summary><p>{item.remarks}</p></details>}</div></article>)}</section>;
+  return <section className="employeeCards">{entries.map((item, index) => { const property = entryPropertyPresentation(item); return <article className="employeeCard employeeProjectionCard" key={`${item.service_date}-${property.key}-${index}`}><div className="employeeCardDate"><strong>{formatDate(item.service_date)}</strong><span>{item.provenance}</span></div><div className="employeeCardBody"><span className="statusPill">{serviceDisplayLabel(item)}</span><h2>{property.label}</h2>{property.context && <small className="sourcePropertyContext">{property.context}</small>}<p>{formatDuration(item.minutes)} · {Number(item.linen_pairs || 0)} linge · {money(item.total_due)}</p>{Number(item.due_other || 0) > 0 && <p>Autre mission / achat : {money(item.due_other)}</p>}{item.mission && <p>{item.mission}</p>}{item.remarks && <details><summary>Voir la remarque</summary><p>{item.remarks}</p></details>}</div></article>; })}</section>;
 }
 
 export function OwnerTeamOverview() {
@@ -281,7 +286,7 @@ export function OwnerTeamOverview() {
     setLoading(true);
     const [profileQuery, entryQuery, paymentQuery, balanceQuery] = await Promise.all([
       supabase.from("tibaldo_app_employee_profiles").select("id, user_id, display_name, active, status, staff_key").in("staff_key", ["gaelle", "jennifer", "rachida"]).order("display_name"),
-      supabase.rpc("tibaldo_app_person_entries"),
+      supabase.rpc("tibaldo_app_person_entries_v2"),
       supabase.rpc("tibaldo_app_person_payments"),
       supabase.rpc("tibaldo_app_personnel_balances"),
     ]);
@@ -324,10 +329,10 @@ export function OwnerTeamOverview() {
   const periodPayments = personPayments.filter((item) => dateInRange(item.payment_date, dateRange));
   const normalizedSearch = filters.search.trim().toLocaleLowerCase("fr");
   const visibleEntries = periodEntries.filter((item) => (!filters.property || propertyFilterKey(item) === filters.property)
-    && (!filters.type || item.service_type === filters.type)
-    && (!normalizedSearch || [propertyLabel(item), serviceTypeLabel(item.service_type), item.service_date, formatDate(item.service_date), item.mission_description, item.remarks]
+    && (!filters.type || serviceSemanticKey(item) === filters.type)
+    && (!normalizedSearch || [propertyLabel(item), propertyContext(item), serviceDisplayLabel(item), item.service_date, formatDate(item.service_date), item.mission_description, item.remarks]
       .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch)))
-    .sort((a, b) => filters.sort === "OLDEST" ? a.service_date.localeCompare(b.service_date) : b.service_date.localeCompare(a.service_date));
+    .sort((a, b) => filters.sort === "OLDEST" ? -compareEntriesNewest(a, b) : compareEntriesNewest(a, b));
   const visiblePayments = periodPayments.filter((item) => !normalizedSearch || [paymentTypeLabel(item.payment_kind), item.note, item.external_reference, item.payment_date, formatDate(item.payment_date)]
     .filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(normalizedSearch));
   const reviewEntries = entries.filter((item) => ["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status));
@@ -447,7 +452,8 @@ export function OwnerTeamOverview() {
 
 function OwnerDataToolbar({ filters, setFilters, entries }) {
   const properties = [...new Map(entries.map((item) => [propertyFilterKey(item), propertyLabel(item)])).entries()];
-  return <section className="ownerDataToolbar" aria-label="Recherche et filtres"><label className="ownerSearchField"><span>Rechercher</span><input type="search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Logement, date, type…"/></label><label><span>Logement</span><select value={filters.property} onChange={(e) => setFilters({ ...filters, property: e.target.value })}><option value="">Tous</option>{properties.map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Type</span><select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">Tous</option><option value="HOUSEKEEPING">Ménage</option><option value="LAUNDRY">Linge</option><option value="MISC_SERVICE">Autre prestation</option><option value="PURCHASE">Achat</option></select></label><label><span>Tri</span><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="NEWEST">Plus récent</option><option value="OLDEST">Plus ancien</option></select></label></section>;
+  const serviceTypes = [...new Set(entries.map(serviceSemanticKey).filter(Boolean))];
+  return <section className="ownerDataToolbar" aria-label="Recherche et filtres"><label className="ownerSearchField"><span>Rechercher</span><input type="search" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Logement, date, type…"/></label><label><span>Logement</span><select value={filters.property} onChange={(e) => setFilters({ ...filters, property: e.target.value })}><option value="">Tous</option>{properties.map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Type</span><select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">Tous</option>{serviceTypes.map((value) => <option value={value} key={value}>{serviceDisplayLabel({ service_type: value })}</option>)}</select></label><label><span>Tri</span><select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="NEWEST">Plus récent</option><option value="OLDEST">Plus ancien</option></select></label></section>;
 }
 
 function ownerPeriodRange(period, customRange) {
@@ -473,29 +479,25 @@ function localDateValue(value) {
 }
 
 function propertyFilterKey(item) {
-  if (["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status)) return "PROPERTY_REVIEW_REQUIRED";
-  if (item.mapping_status === "NO_PROPERTY_REQUIRED") return "NO_PROPERTY_REQUIRED";
-  return item.property || "";
+  return entryPropertyPresentation(item).key;
 }
 
 function propertyLabel(item) {
-  if (["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status)) return "Logement à vérifier";
-  if (item.mapping_status === "NO_PROPERTY_REQUIRED") return "Sans logement requis";
-  return item.property || "Logement à vérifier";
+  return entryPropertyPresentation(item).label;
+}
+
+function propertyContext(item) {
+  return entryPropertyPresentation(item).context;
 }
 
 function EntryRow({ item }) {
-  return <div className="teamRow ownerEntryRow"><time dateTime={item.service_date}>{formatDate(item.service_date)}</time><span><strong>{propertyLabel(item)}</strong>{["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status) && <em className="reviewPill">À vérifier</em>}<small>{serviceTypeLabel(item.service_type)}{Number(item.linen_pairs || 0) ? ` · ${item.linen_pairs} linge` : ""}</small></span><strong className="ownerEntryDuration">{formatDuration(item.minutes)}</strong><strong>{money(item.due_total_amount)}</strong></div>;
+  return <div className="teamRow ownerEntryRow"><time dateTime={item.service_date}>{formatDate(item.service_date)}</time><span><strong>{propertyLabel(item)}</strong>{["PROPERTY_REVIEW_REQUIRED", "OWNER_REVIEW_REQUIRED"].includes(item.mapping_status) && <em className="reviewPill">À vérifier</em>}<small>{serviceDisplayLabel(item)}{Number(item.linen_pairs || 0) ? ` · ${item.linen_pairs} linge` : ""}</small>{propertyContext(item) && <em className="sourcePropertyContext">{propertyContext(item)}</em>}</span><strong className="ownerEntryDuration">{formatDuration(item.minutes)}</strong><strong>{money(item.due_total_amount)}</strong></div>;
 }
 
 function PaymentRow({ item }) {
   const reimbursement = item.payment_kind === "EXPENSE_REIMBURSEMENT";
   const reference = humanPaymentReference(item.external_reference);
   return <div className={`teamRow ownerPaymentRow ${reimbursement ? "reimbursement" : ""}`}><time dateTime={item.payment_date}>{formatDate(item.payment_date)}</time><span><strong>{paymentTypeLabel(item.payment_kind)}</strong><small>{item.note || "Sans note"}{reference ? ` · Réf. ${reference}` : ""}</small>{reimbursement && <em>Hors solde salaire</em>}</span><strong>{money(item.amount)}</strong></div>;
-}
-
-function serviceTypeLabel(value) {
-  return { HOUSEKEEPING: "Ménage", LAUNDRY: "Linge", MISC_SERVICE: "Autre prestation", PURCHASE: "Achat" }[value] || "Prestation";
 }
 
 function normalizeEntries(entries) {
