@@ -162,6 +162,12 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
 .employeeAccountStatus span, .employeeAccountStatus small { display: block; }
 .employeeAccountStatus small { margin-top: .25rem; color: var(--private-muted); }
 .employeeAccountStatus > strong { color: var(--private-forest); font-size: .76rem; letter-spacing: .08em; }
+.accountActions { display: flex; flex-wrap: wrap; gap: .35rem; margin-left: auto; }
+.accountActions .dangerAccountAction { color: var(--private-alert); }
+.employeeInviteForm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: .7rem; align-items: end; margin: -0.2rem 0 1rem; padding: 1rem; border-radius: 14px; background: var(--private-sage); }
+.employeeInviteForm p { grid-column: 1 / -1; margin: 0; color: var(--private-muted); }
+.employeeInviteForm label { display: grid; gap: .35rem; color: #37594f; font-size: .78rem; font-weight: 750; }
+.employeeInviteForm input { min-width: 0; min-height: 44px; padding: .65rem .75rem; border: 1px solid #bbc9bb; border-radius: 10px; }
 
 .employeeHoursReport { margin: 1.4rem 0 2rem; }
 .hoursReportHeading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: 2rem 0 1.2rem; }
@@ -286,6 +292,8 @@ body:has(.privateShell), body:has(.privateLogin), body:has(.privateSplash) { mar
   .balanceEquation i { transform: rotate(90deg); justify-self: center; }
   .employeeReportLink { width: 100%; text-align: center; }
   .employeeAccountStatus { align-items: start; flex-direction: column; }
+  .accountActions { margin-left: 0; }
+  .employeeInviteForm { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

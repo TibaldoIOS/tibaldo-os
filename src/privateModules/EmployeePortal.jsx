@@ -267,6 +267,8 @@ export function OwnerTeamOverview() {
   const [selectedProfileId, setSelectedProfileId] = useState(() => window.location.hash.match(/^#team\/([0-9a-f-]+)$/i)?.[1] || "");
   const [filters, setFilters] = useState({ person: "", property: "", type: "", paymentStatus: "", start: "", end: "" });
   const [payment, setPayment] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), kind: "WAGE_PAYMENT", note: "", reference: "" });
+  const [accountForm, setAccountForm] = useState({ open: false, firstName: "", lastName: "", email: "" });
+  const [accountState, setAccountState] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -297,6 +299,17 @@ export function OwnerTeamOverview() {
     load();
   }, []);
 
+  useEffect(() => {
+    let current = true;
+    if (!selectedProfileId) return () => { current = false; };
+    void supabase.functions.invoke("employee-account-admin", {
+      body: { action: "status", personId: selectedProfileId },
+    }).then((result) => {
+      if (current) setAccountState(result.error || result.data?.error ? "STATUS_UNAVAILABLE" : result.data?.state || "STATUS_UNAVAILABLE");
+    });
+    return () => { current = false; };
+  }, [selectedProfileId]);
+
   const selectedProfile = profiles.find((item) => item.id === selectedProfileId);
   const selectedBalance = balances.find((item) => item.person_id === selectedProfileId);
   const scopePersonId = selectedProfileId || filters.person;
@@ -321,11 +334,13 @@ export function OwnerTeamOverview() {
     || item.legacy_classification === "LEGACY_BALANCE_CORRECTION_ORIGIN_NOT_PROVEN");
 
   function openProfile(id) {
+    setAccountState("");
     setSelectedProfileId(id);
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#team/${id}`);
   }
 
   function closeProfile() {
+    setAccountState("");
     setSelectedProfileId("");
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#team`);
   }
@@ -360,6 +375,28 @@ export function OwnerTeamOverview() {
     await load();
   }
 
+  async function manageEmployeeAccount(action) {
+    if (action === "disable" && !window.confirm("Désactiver immédiatement l’accès Personnel de cette salariée ?")) return;
+    if (action === "recovery" && !window.confirm("Envoyer un email de récupération à cette salariée ?")) return;
+    setMessage("");
+    const result = await supabase.functions.invoke("employee-account-admin", {
+      body: {
+        action,
+        personId: selectedProfileId,
+        firstName: accountForm.firstName,
+        lastName: accountForm.lastName,
+        email: accountForm.email,
+      },
+    });
+    if (result.error || result.data?.error) {
+      setMessage("Action compte refusée ou impossible. Aucune donnée Personnel n’a été modifiée.");
+      return;
+    }
+    setMessage(action === "invite" ? "Invitation envoyée. La salariée choisira elle-même son mot de passe." : action === "disable" ? "Accès désactivé." : "Lien de récupération envoyé.");
+    setAccountForm({ open: false, firstName: "", lastName: "", email: "" });
+    await load();
+  }
+
   return <main className="privatePage privateModuleScope ownerTeam" id="main-content">
     <header className="employeeHero"><div><p className="privateEyebrow">ÉQUIPE · BÊTA PRIVÉE</p><h1>{selectedProfile ? selectedProfile.display_name : "Personnel & ménage."}</h1><p>Registre canonique des prestations, heures, linge, paiements et soldes calculés côté serveur.</p></div>{selectedProfile && <button className="privateTextButton" onClick={closeProfile}>← Vue globale</button>}</header>
     {message && <p className="privateInlineMessage">{message}</p>}
@@ -370,7 +407,7 @@ export function OwnerTeamOverview() {
 
     {!loading && !selectedProfile && <section className="teamBalanceDirectory">{directory.map((item) => <button key={item.person_id} onClick={() => openProfile(item.person_id)}><span><strong>{item.display_name}</strong><small>{Number(item.total_hours).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h · {item.linen_pairs} jeux de linge</small><small>{money(item.due_work)} travail · {money(item.due_laundry)} linge · {money(item.due_other)} autres</small></span><span><small>Payé {money(item.wage_payments_included)}</small><strong>{money(item.balance)}</strong></span></button>)}</section>}
 
-    {!loading && selectedBalance && <section aria-labelledby="synthese-title"><h2 id="synthese-title" className="sectionTitle">Synthèse</h2><div className="employeeAccountStatus"><span><b>Compte Personnel</b><small>{selectedProfile?.user_id ? (selectedProfile.active && selectedProfile.status === "ACTIVE" ? "Actif" : "Désactivé") : "Non créé — aucune invitation envoyée"}</small></span><strong>{selectedProfile?.user_id ? "LIÉ" : "À INVITER APRÈS GO"}</strong></div><BalanceCards balance={selectedBalance} /></section>}
+    {!loading && selectedBalance && <section aria-labelledby="synthese-title"><h2 id="synthese-title" className="sectionTitle">Synthèse</h2><div className="employeeAccountStatus"><span><b>Compte Personnel</b><small>{accountState || "Vérification…"}</small></span><strong>{accountState === "ACCOUNT_NOT_CREATED" ? "PRÊT À INVITER" : accountState === "DISABLED" ? "ACCÈS COUPÉ" : accountState === "STATUS_UNAVAILABLE" ? "ÉTAT INDISPONIBLE" : "COMPTE LIÉ"}</strong><div className="accountActions">{accountState === "ACCOUNT_NOT_CREATED" ? <button className="privateTextButton" onClick={() => setAccountForm((current) => ({ ...current, open: !current.open }))}>Inviter</button> : ["ACTIVE", "INVITED"].includes(accountState) ? <><button className="privateTextButton" onClick={() => manageEmployeeAccount("recovery")}>Envoyer un lien de récupération</button><button className="privateTextButton dangerAccountAction" onClick={() => manageEmployeeAccount("disable")}>Désactiver l’accès</button></> : null}</div></div>{accountForm.open && accountState === "ACCOUNT_NOT_CREATED" && <form className="employeeInviteForm" onSubmit={(event) => { event.preventDefault(); void manageEmployeeAccount("invite"); }}><p>Aucun mot de passe n’est demandé : la salariée le choisira depuis son invitation.</p><label>Prénom<input required value={accountForm.firstName} onChange={(event) => setAccountForm({ ...accountForm, firstName: event.target.value })} /></label><label>Nom<input required value={accountForm.lastName} onChange={(event) => setAccountForm({ ...accountForm, lastName: event.target.value })} /></label><label>Email<input required type="email" value={accountForm.email} onChange={(event) => setAccountForm({ ...accountForm, email: event.target.value })} /></label><button className="privatePrimaryAction" type="submit">Envoyer l’invitation</button></form>}<BalanceCards balance={selectedBalance} /></section>}
 
     {!loading && selectedProfile && <PersonOperationalDetail entries={visibleEntries} payments={ordinaryPayments} adjustments={adjustments} balance={selectedBalance} />}
 
