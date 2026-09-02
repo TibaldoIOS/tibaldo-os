@@ -57,7 +57,7 @@ Deno.serve(async (request) => {
       throw new Error("invalid_request");
     }
 
-    const { data: profile, error: profileError } = await admin.from("tibaldo_app_employee_profiles")
+    const { data: profile, error: profileError } = await userClient.from("tibaldo_app_employee_profiles")
       .select("id,user_id,display_name,staff_key,active,status")
       .eq("id", body.personId)
       .in("staff_key", ["gaelle", "jennifer", "rachida"])
@@ -87,11 +87,11 @@ Deno.serve(async (request) => {
         data: { first_name: firstName, last_name: lastName, account_source: "owner_employee_invite" },
       });
       if (inviteError || !invited.user) throw inviteError || new Error("invite_failed");
-      const { error: linkError } = await admin.from("tibaldo_app_employee_profiles")
+      const { error: linkError } = await userClient.from("tibaldo_app_employee_profiles")
         .update({ user_id: invited.user.id, active: true, status: "ACTIVE", updated_at: new Date().toISOString() })
         .eq("id", profile.id).is("user_id", null);
       if (linkError) throw linkError;
-      const { error: membershipError } = await admin.from("tibaldo_app_memberships")
+      const { error: membershipError } = await userClient.from("tibaldo_app_memberships")
         .upsert({ user_id: invited.user.id, role: "EMPLOYEE", updated_at: new Date().toISOString() });
       if (membershipError) throw membershipError;
       return Response.json({ ok: true, state: "INVITED" }, { headers });
@@ -104,7 +104,7 @@ Deno.serve(async (request) => {
     if (body.action === "disable") {
       const { error: disableError } = await admin.auth.admin.updateUserById(profile.user_id, { ban_duration: "876000h" });
       if (disableError) throw disableError;
-      const { error: profileUpdateError } = await admin.from("tibaldo_app_employee_profiles")
+      const { error: profileUpdateError } = await userClient.from("tibaldo_app_employee_profiles")
         .update({ active: false, status: "DISABLED", updated_at: new Date().toISOString() }).eq("id", profile.id);
       if (profileUpdateError) throw profileUpdateError;
       return Response.json({ ok: true, state: "DISABLED" }, { headers });
