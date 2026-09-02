@@ -490,7 +490,8 @@ function EntryRow({ item }) {
 
 function PaymentRow({ item }) {
   const reimbursement = item.payment_kind === "EXPENSE_REIMBURSEMENT";
-  return <div className={`teamRow ownerPaymentRow ${reimbursement ? "reimbursement" : ""}`}><time dateTime={item.payment_date}>{formatDate(item.payment_date)}</time><span><strong>{paymentTypeLabel(item.payment_kind)}</strong><small>{item.note || "Sans note"}{item.external_reference ? ` · Réf. ${item.external_reference}` : ""}</small>{reimbursement && <em>Hors solde salaire</em>}</span><strong>{money(item.amount)}</strong></div>;
+  const reference = humanPaymentReference(item.external_reference);
+  return <div className={`teamRow ownerPaymentRow ${reimbursement ? "reimbursement" : ""}`}><time dateTime={item.payment_date}>{formatDate(item.payment_date)}</time><span><strong>{paymentTypeLabel(item.payment_kind)}</strong><small>{item.note || "Sans note"}{reference ? ` · Réf. ${reference}` : ""}</small>{reimbursement && <em>Hors solde salaire</em>}</span><strong>{money(item.amount)}</strong></div>;
 }
 
 function serviceTypeLabel(value) {
@@ -503,4 +504,9 @@ function normalizeEntries(entries) {
 
 function paymentTypeLabel(value) {
   return { WAGE_PAYMENT: "Paiement", EXPENSE_REIMBURSEMENT: "Remboursement de frais", LEGACY_ADJUSTMENT: "Ajustement historique", OTHER_REVIEWED: "Autre écriture vérifiée" }[value] || "Paiement";
+}
+
+function humanPaymentReference(value) {
+  const reference = String(value || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(reference) ? "" : reference;
 }
