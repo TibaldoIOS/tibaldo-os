@@ -1,5 +1,16 @@
 const numericFrenchPattern = /^\d+(?:[\u00a0\u202f ]\d{3})*(?:[,.]\d+)?$/;
 
+export function isHousekeepingDurationRequired(serviceType) {
+  const normalized = String(serviceType || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  return !normalized.startsWith("linge") && !/^achats?$/.test(normalized);
+}
+
 export function parseHousekeepingDuration(value, { required = true } = {}) {
   const raw = value == null ? "" : String(value).trim();
 

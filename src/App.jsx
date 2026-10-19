@@ -18,6 +18,7 @@ import RevenuePage from "./RevenuePage";
 import PaymentsPage from "./PaymentsPage";
 import {
   housekeepingDurationIssueLabel,
+  isHousekeepingDurationRequired,
   parseHousekeepingDuration,
   summarizeHousekeepingCompensation,
 } from "./services/housekeepingDuration";
@@ -1665,7 +1666,7 @@ function HousekeepingDashboard() {
     const linenPresence = getCell(row, mapping.linenPresence);
     const linenCleaned = parseFrenchNumber(getCell(row, mapping.linenCleaned));
     const type = inferHousekeepingServiceType(row, mapping, employee, property, roomsText, getCell(row, mapping.surfaces), remarks, linenCleaned);
-    const duration = parseHousekeepingDuration(durationRaw, { required: !normalizeText(type).startsWith("linge") });
+    const duration = parseHousekeepingDuration(durationRaw, { required: isHousekeepingDurationRequired(type) });
     const minutes = duration.minutes;
     const hours = duration.valid && duration.applicable ? minutes / 60 : null;
     const surfaces = getCell(row, mapping.surfaces);

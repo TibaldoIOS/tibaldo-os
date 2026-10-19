@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isHousekeepingDurationRequired,
   parseHousekeepingDuration,
   summarizeHousekeepingCompensation,
   summarizeHousekeepingDurations,
@@ -100,4 +101,40 @@ test("keeps an empty housekeeping duration visible as an incomplete anomaly", ()
   assert.equal(duration.reason, "DURATION_MISSING");
   assert.equal(summary.invalidCount, 1);
   assert.equal(summary.complete, false);
+});
+
+test("treats purchase-only rows with an empty duration as non-applicable and preserves reimbursement", () => {
+  assert.equal(isHousekeepingDurationRequired("🛒 Achats"), false);
+  assert.equal(isHousekeepingDurationRequired("Ménage Airbnb"), true);
+  assert.equal(isHousekeepingDurationRequired("Service client"), true);
+
+  const duration = parseHousekeepingDuration("", {
+    required: isHousekeepingDurationRequired("🛒 Achats"),
+  });
+  const summary = summarizeHousekeepingCompensation([{
+    serviceType: "🛒 Achats",
+    durationValid: duration.valid,
+    durationApplicable: duration.applicable,
+    minutes: duration.minutes,
+    linenCleaned: 0,
+    purchases: 12.5,
+  }], 15, 3);
+
+  assert.equal(duration.valid, true);
+  assert.equal(duration.applicable, false);
+  assert.equal(summary.invalidCount, 0);
+  assert.equal(summary.complete, true);
+  assert.equal(summary.laborEstimate, 0);
+  assert.equal(summary.purchases, 12.5);
+  assert.equal(summary.totalToPayEstimate, 12.5);
+});
+
+test("keeps a present invalid purchase-only duration visible as an anomaly", () => {
+  const duration = parseHousekeepingDuration("texte", {
+    required: isHousekeepingDurationRequired("🛒 Achats"),
+  });
+
+  assert.equal(duration.valid, false);
+  assert.equal(duration.applicable, true);
+  assert.equal(duration.reason, "DURATION_NOT_NUMERIC");
 });
