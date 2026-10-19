@@ -19,7 +19,7 @@ import PaymentsPage from "./PaymentsPage";
 import {
   housekeepingDurationIssueLabel,
   parseHousekeepingDuration,
-  summarizeHousekeepingDurations,
+  summarizeHousekeepingCompensation,
 } from "./services/housekeepingDuration";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -1656,9 +1656,7 @@ function HousekeepingDashboard() {
     const dateValue = getCell(row, mapping.date);
     const employee = normalizeEmployeeName(getCell(row, mapping.employee));
     const property = normalizePropertyName(getCell(row, mapping.property));
-    const duration = parseHousekeepingDuration(getFirstNonEmptyCell(row, mapping.minuteColumns && mapping.minuteColumns.length ? mapping.minuteColumns : [mapping.minutes]));
-    const minutes = duration.minutes;
-    const hours = duration.valid ? minutes / 60 : null;
+    const durationRaw = getFirstNonEmptyCell(row, mapping.minuteColumns && mapping.minuteColumns.length ? mapping.minuteColumns : [mapping.minutes]);
     const purchases = parseFrenchNumber(getCell(row, mapping.purchases));
     const products = getCell(row, mapping.products);
     const receipt = getCell(row, mapping.receipt);
@@ -1667,6 +1665,9 @@ function HousekeepingDashboard() {
     const linenPresence = getCell(row, mapping.linenPresence);
     const linenCleaned = parseFrenchNumber(getCell(row, mapping.linenCleaned));
     const type = inferHousekeepingServiceType(row, mapping, employee, property, roomsText, getCell(row, mapping.surfaces), remarks, linenCleaned);
+    const duration = parseHousekeepingDuration(durationRaw, { required: !normalizeText(type).startsWith("linge") });
+    const minutes = duration.minutes;
+    const hours = duration.valid && duration.applicable ? minutes / 60 : null;
     const surfaces = getCell(row, mapping.surfaces);
     const parsedDate = parseAnyDate(dateValue);
     const roomCount = countRooms(roomsText);
@@ -1686,6 +1687,7 @@ function HousekeepingDashboard() {
       hours,
       durationRaw: duration.raw,
       durationValid: duration.valid,
+      durationApplicable: duration.applicable,
       durationIssue,
       purchases,
       products,
@@ -1735,29 +1737,29 @@ function HousekeepingDashboard() {
   const linenUnit = parseFrenchNumber(linenRate);
 
   const kpis = useMemo(() => {
-    const durationSummary = summarizeHousekeepingDurations(filteredRows);
-    const totalMinutes = durationSummary.totalMinutes;
-    const totalHours = totalMinutes / 60;
-    const purchases = sum(filteredRows.map((row) => row.purchases));
-    const linenCleaned = sum(filteredRows.map((row) => row.linenCleaned));
-    const linenPay = linenCleaned * linenUnit;
-    const laborEstimate = totalHours * hourly;
-    const totalToPayEstimate = laborEstimate + linenPay + purchases;
+    const compensation = summarizeHousekeepingCompensation(filteredRows, hourly, linenUnit);
+    const totalMinutes = compensation.totalMinutes;
+    const totalHours = compensation.totalHours;
+    const purchases = compensation.purchases;
+    const linenCleaned = compensation.linenCleaned;
+    const linenPay = compensation.linenPay;
+    const laborEstimate = compensation.laborEstimate;
+    const totalToPayEstimate = compensation.totalToPayEstimate;
     const interventions = filteredRows.length;
     const rooms = sum(filteredRows.map((row) => row.roomCount));
     const anomalies = filteredRows.filter((row) => row.anomaly).length;
     const adminMissions = filteredRows.filter((row) => row.isAdmin).length;
     const adminHours = sum(filteredRows.filter((row) => row.isAdmin).map((row) => row.hours));
     const invalidAdminDurations = filteredRows.filter((row) => row.isAdmin && !row.durationValid).length;
-    const avgMinutes = durationSummary.validCount ? totalMinutes / durationSummary.validCount : 0;
+    const avgMinutes = compensation.validCount ? totalMinutes / compensation.validCount : 0;
     const rowsWithPurchases = filteredRows.filter((row) => row.purchases > 0).length;
 
     return {
       interventions,
       totalMinutes,
       totalHours,
-      invalidDurations: durationSummary.invalidCount,
-      durationTotalsIncomplete: !durationSummary.complete,
+      invalidDurations: compensation.invalidCount,
+      durationTotalsIncomplete: !compensation.complete,
       purchases,
       rowsWithPurchases,
       laborEstimate,
@@ -1968,8 +1970,8 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
                     <td>{row.employee}</td>
                     <td>{row.property}</td>
                     <td>{row.type || "—"}</td>
-                    <td>{row.durationValid ? formatNumber(row.minutes) : "À vérifier"}</td>
-                    <td>{row.durationValid ? formatNumber(row.hours) : "—"}</td>
+                    <td>{row.durationApplicable === false ? "Non applicable" : row.durationValid ? formatNumber(row.minutes) : "À vérifier"}</td>
+                    <td>{row.durationApplicable === false ? "—" : row.durationValid ? formatNumber(row.hours) : "—"}</td>
                     <td>{row.roomsText || "—"}</td>
                     <td>{formatNumber(row.linenCleaned)}</td>
                     <td>{row.linenPresence || "—"}</td>
@@ -2398,7 +2400,9 @@ function groupSummaryHousekeeping(rows, key, hourlyRate, linenRate) {
     }
 
     map[name].count += 1;
-    if (row.durationValid) {
+    if (row.durationApplicable === false) {
+      // Linen-only work is paid per item and has no hourly duration contract.
+    } else if (row.durationValid) {
       map[name].minutes += row.minutes;
       map[name].hours += row.hours;
     } else {
