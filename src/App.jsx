@@ -16,6 +16,11 @@ import AirbnbFiscalityPage from "./pages/AirbnbFiscalityPage";
 import BalancesPage from "./BalancesPage";
 import RevenuePage from "./RevenuePage";
 import PaymentsPage from "./PaymentsPage";
+import {
+  housekeepingDurationIssueLabel,
+  parseHousekeepingDuration,
+  summarizeHousekeepingDurations,
+} from "./services/housekeepingDuration";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -1651,8 +1656,9 @@ function HousekeepingDashboard() {
     const dateValue = getCell(row, mapping.date);
     const employee = normalizeEmployeeName(getCell(row, mapping.employee));
     const property = normalizePropertyName(getCell(row, mapping.property));
-    const minutes = parseFrenchNumber(getFirstNonEmptyCell(row, mapping.minuteColumns && mapping.minuteColumns.length ? mapping.minuteColumns : [mapping.minutes]));
-    const hours = minutes / 60;
+    const duration = parseHousekeepingDuration(getFirstNonEmptyCell(row, mapping.minuteColumns && mapping.minuteColumns.length ? mapping.minuteColumns : [mapping.minutes]));
+    const minutes = duration.minutes;
+    const hours = duration.valid ? minutes / 60 : null;
     const purchases = parseFrenchNumber(getCell(row, mapping.purchases));
     const products = getCell(row, mapping.products);
     const receipt = getCell(row, mapping.receipt);
@@ -1664,7 +1670,8 @@ function HousekeepingDashboard() {
     const surfaces = getCell(row, mapping.surfaces);
     const parsedDate = parseAnyDate(dateValue);
     const roomCount = countRooms(roomsText);
-    const anomaly = detectAnomaly(`${remarks} ${linenPresence} ${surfaces}`);
+    const durationIssue = duration.valid ? "" : housekeepingDurationIssueLabel(duration.reason);
+    const anomaly = Boolean(durationIssue) || detectAnomaly(`${remarks} ${linenPresence} ${surfaces}`);
     const dayLabel = parsedDate ? parsedDate.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" }) : "Sans date";
     const isAdmin = isAdminService(type, remarks, products);
     return {
@@ -1677,6 +1684,9 @@ function HousekeepingDashboard() {
       property,
       minutes,
       hours,
+      durationRaw: duration.raw,
+      durationValid: duration.valid,
+      durationIssue,
       purchases,
       products,
       receipt,
@@ -1725,7 +1735,8 @@ function HousekeepingDashboard() {
   const linenUnit = parseFrenchNumber(linenRate);
 
   const kpis = useMemo(() => {
-    const totalMinutes = sum(filteredRows.map((row) => row.minutes));
+    const durationSummary = summarizeHousekeepingDurations(filteredRows);
+    const totalMinutes = durationSummary.totalMinutes;
     const totalHours = totalMinutes / 60;
     const purchases = sum(filteredRows.map((row) => row.purchases));
     const linenCleaned = sum(filteredRows.map((row) => row.linenCleaned));
@@ -1737,13 +1748,16 @@ function HousekeepingDashboard() {
     const anomalies = filteredRows.filter((row) => row.anomaly).length;
     const adminMissions = filteredRows.filter((row) => row.isAdmin).length;
     const adminHours = sum(filteredRows.filter((row) => row.isAdmin).map((row) => row.hours));
-    const avgMinutes = interventions ? totalMinutes / interventions : 0;
+    const invalidAdminDurations = filteredRows.filter((row) => row.isAdmin && !row.durationValid).length;
+    const avgMinutes = durationSummary.validCount ? totalMinutes / durationSummary.validCount : 0;
     const rowsWithPurchases = filteredRows.filter((row) => row.purchases > 0).length;
 
     return {
       interventions,
       totalMinutes,
       totalHours,
+      invalidDurations: durationSummary.invalidCount,
+      durationTotalsIncomplete: !durationSummary.complete,
       purchases,
       rowsWithPurchases,
       laborEstimate,
@@ -1754,6 +1768,7 @@ function HousekeepingDashboard() {
       anomalies,
       adminMissions,
       adminHours,
+      invalidAdminDurations,
       avgMinutes,
       employees: unique(filteredRows.map((row) => row.employee)).length,
       properties: unique(filteredRows.map((row) => row.property)).length,
@@ -1842,7 +1857,7 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
 
           <div className="kpiGrid">
             <KpiCard icon="🧾" label="Interventions" value={kpis.interventions} />
-            <KpiCard icon="⏱️" label="Temps total" value={`${formatNumber(kpis.totalHours)} h`} />
+            <KpiCard icon="⏱️" label="Temps total" value={`${formatNumber(kpis.totalHours)} h${kpis.durationTotalsIncomplete ? " · incomplet" : ""}`} />
             <KpiCard icon="🕒" label="Moyenne / prestation" value={`${formatNumber(kpis.avgMinutes)} min`} />
             <KpiCard icon="🏠" label="Logements" value={kpis.properties} />
             <KpiCard icon="👥" label="Prestataires" value={kpis.employees} />
@@ -1851,11 +1866,12 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
             <KpiCard icon="💶" label="Paie linge" value={formatCurrency(kpis.linenPay)} />
             <KpiCard icon="🧴" label="Achats" value={formatCurrency(kpis.purchases)} />
             <KpiCard icon="📌" label="Lignes achats" value={kpis.rowsWithPurchases} />
-            <KpiCard icon="💰" label="Total estimé" value={formatCurrency(kpis.totalToPayEstimate)} />
+            <KpiCard icon="💰" label="Total estimé" value={`${formatCurrency(kpis.totalToPayEstimate)}${kpis.durationTotalsIncomplete ? " · incomplet" : ""}`} />
             <KpiCard icon="⚠️" label="Alertes" value={kpis.anomalies} />
+            <KpiCard icon="⛔" label="Durées à vérifier" value={kpis.invalidDurations} />
             <KpiCard icon="📞" label="Admin/service client" value={kpis.adminMissions} />
-            <KpiCard icon="🕘" label="Heures admin" value={`${formatNumber(kpis.adminHours)} h`} />
-            <KpiCard icon="💶" label="Paie horaire" value={formatCurrency(kpis.laborEstimate)} />
+            <KpiCard icon="🕘" label="Heures admin" value={`${formatNumber(kpis.adminHours)} h${kpis.invalidAdminDurations > 0 ? " · incomplet" : ""}`} />
+            <KpiCard icon="💶" label="Paie horaire" value={`${formatCurrency(kpis.laborEstimate)}${kpis.durationTotalsIncomplete ? " · incomplet" : ""}`} />
             <KpiCard icon="📍" label="Taux horaire" value={`${formatNumber(hourly)} €/h`} />
           </div>
 
@@ -1915,6 +1931,7 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
                 {anomalies.slice(0, 12).map((row) => (
                   <div className="summaryItem alertItem" key={row.id}>
                     <strong>{row.dayLabel} · {row.employee} · {row.property}</strong>
+                    {row.durationIssue && <span>{row.durationIssue} : « {row.durationRaw || "vide"} »</span>}
                     <span>{row.remarks || row.linenPresence || "Remarque non renseignée"}</span>
                   </div>
                 ))}
@@ -1951,8 +1968,8 @@ const byProduct = useMemo(() => groupProducts(filteredRows), [filteredRows]);
                     <td>{row.employee}</td>
                     <td>{row.property}</td>
                     <td>{row.type || "—"}</td>
-                    <td>{formatNumber(row.minutes)}</td>
-                    <td>{formatNumber(row.hours)}</td>
+                    <td>{row.durationValid ? formatNumber(row.minutes) : "À vérifier"}</td>
+                    <td>{row.durationValid ? formatNumber(row.hours) : "—"}</td>
                     <td>{row.roomsText || "—"}</td>
                     <td>{formatNumber(row.linenCleaned)}</td>
                     <td>{row.linenPresence || "—"}</td>
@@ -2007,6 +2024,7 @@ function SummaryList({ data }) {
           <strong>{item.name}</strong>
           <span>{item.count} intervention(s)</span>
           <span>{formatNumber(item.hours)} h · {item.rooms} chambre(s) · {formatCurrency(item.purchases)} achats</span>
+          {item.invalidDurations > 0 && <span>⚠️ {item.invalidDurations} durée(s) exclue(s) des heures et de la paie</span>}
           <span>Linge : {formatNumber(item.linenCleaned)} jeu(x) · {formatCurrency(item.linenPay)}</span>
           <span>Paie horaire : {formatCurrency(item.laborEstimate)}</span>
         </div>
@@ -2375,12 +2393,17 @@ function groupSummaryHousekeeping(rows, key, hourlyRate, linenRate) {
         linenCleaned: 0,
         linenPay: 0,
         laborEstimate: 0,
+        invalidDurations: 0,
       };
     }
 
     map[name].count += 1;
-    map[name].minutes += row.minutes || 0;
-    map[name].hours += row.hours || 0;
+    if (row.durationValid) {
+      map[name].minutes += row.minutes;
+      map[name].hours += row.hours;
+    } else {
+      map[name].invalidDurations += 1;
+    }
     map[name].purchases += row.purchases || 0;
     map[name].rooms += row.roomCount || 0;
     map[name].linenCleaned += row.linenCleaned || 0;
